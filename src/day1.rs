@@ -10,9 +10,8 @@ pub fn part_1(input: &str) -> usize {
 pub fn part_2(input: &str) -> usize {
     parse_numbers(input)
         .tuple_windows()
-        .map(|(a, b, c)| a + b + c)
-        .tuple_windows()
-        .filter(|(sum_a, sum_b)| sum_b > sum_a)
+        // Compare the value that is removed with the one that is added
+        .filter(|(removed, _, _, added)| added > removed)
         .count()
 }
 
@@ -68,5 +67,5 @@ fn test_part_2_example() {
 #[test]
 fn test_part_2_input() {
     let input = include_str!("../input/2021/day1.txt");
-    assert_eq!(part_2(input), 1791);
+    assert_eq!(part_2(input), 1822);
 }
