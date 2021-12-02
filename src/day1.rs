@@ -16,7 +16,11 @@ pub fn part_2(input: &str) -> usize {
 }
 
 fn parse_numbers(input: &str) -> impl Iterator<Item = u16> + '_ {
-    let mut iter = input.as_bytes().iter().copied();
+    let mut iter = input
+        .as_bytes()
+        .iter()
+        .copied()
+        .inspect(|&a| debug_assert!(a.is_ascii_digit() || a == b'\n'));
     const NUMBER_MASK: u8 = 0b0100000;
     std::iter::from_fn(move || {
         iter.next().map(|x| {
