@@ -1,3 +1,7 @@
+mod code_golf;
+
+pub use code_golf::z as part_1_code_golf;
+
 const fn ones_mask(size: usize) -> u32 {
     let mut mask = 0;
     let mut pos = 0;
@@ -95,6 +99,12 @@ fn read_numbers(input: &str) -> impl Iterator<Item = u32> + '_ {
 fn test_part_1_input() {
     let input = include_str!("../input/2021/day3.txt");
     assert_eq!(part_1(input), 3320834);
+}
+
+#[test]
+fn test_part_1_code_golf_input() {
+    let input = include_str!("../input/2021/day3.txt");
+    assert_eq!(part_1_code_golf(input), 3320834);
 }
 
 #[test]
