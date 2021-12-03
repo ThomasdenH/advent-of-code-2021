@@ -1,3 +1,4 @@
+#[rustfmt::skip]
 mod code_golf;
 
 pub use code_golf::z as part_1_code_golf;

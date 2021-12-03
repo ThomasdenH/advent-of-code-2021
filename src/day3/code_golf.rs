@@ -5,8 +5,8 @@ pub fn z(a: &str) -> u32 {
         b[c % 13] += a as usize & 1;
     }
     for a in b.iter_mut() {
-        if *a > (c + 1) / 26 {
-            g += u;
+        if 26 * *a > c + 1 {
+            g |= u;
         }
         u >>= 1;
         e |= u;
