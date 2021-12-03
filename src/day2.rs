@@ -1,4 +1,4 @@
-use std::{str};
+use std::str;
 
 enum Direction {
     Forward,
@@ -31,34 +31,31 @@ pub fn part_2(input: &str) -> u64 {
 }
 
 fn parse_direction(input: &mut &[u8]) -> Option<Direction> {
-    input.first()
-        .copied()
-        .map(|b| match b {
-            b'f' => {
-                *input = &input[8..];
-                Direction::Forward
-            }
-            b'd' => {
-                *input = &input[5..];
-                Direction::Down
-            }
-            b'u' => {
-                *input = &input[3..];
-                Direction::Up
-            }
-            _ => unreachable!("Invalid input, expected direction")
-        })
+    input.first().copied().map(|b| match b {
+        b'f' => {
+            *input = &input[8..];
+            Direction::Forward
+        }
+        b'd' => {
+            *input = &input[5..];
+            Direction::Down
+        }
+        b'u' => {
+            *input = &input[3..];
+            Direction::Up
+        }
+        _ => unreachable!("Invalid input, expected direction"),
+    })
 }
 
 fn parse_number(input: &mut &[u8]) -> u64 {
     const NUMBER_MASK: u8 = 0b0100000;
     std::iter::from_fn(|| {
-        // Take the first digit while 
-        input.split_first()
-            .map(|(digit, remainder)| {
-                *input = remainder;
-                digit
-            })
+        // Take the first digit while
+        input.split_first().map(|(digit, remainder)| {
+            *input = remainder;
+            digit
+        })
     })
     .take_while(|d| *d & NUMBER_MASK != 0)
     .inspect(|d| debug_assert!(d.is_ascii_digit()))
@@ -69,8 +66,7 @@ fn parse_number(input: &mut &[u8]) -> u64 {
 fn parse(input: &str) -> impl Iterator<Item = (Direction, u64)> + '_ {
     let mut input = input.as_bytes();
     std::iter::from_fn(move || {
-        parse_direction(&mut input)
-            .map(|direction| (direction, parse_number(&mut input)))
+        parse_direction(&mut input).map(|direction| (direction, parse_number(&mut input)))
     })
 }
 
