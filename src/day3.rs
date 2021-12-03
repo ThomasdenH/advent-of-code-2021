@@ -1,17 +1,35 @@
-pub fn part_1(input: &str) -> u32 {
-    const NUMBER_LEN: usize = 12;
-    let mut outputs = [0u32; NUMBER_LEN + 1];
-    for (byte, out_index) in input.as_bytes().iter().zip((0..(NUMBER_LEN + 1)).cycle()) {
-        outputs[out_index] += u32::from(0b1 & *byte);
+const fn ones_mask(size: usize) -> u32 {
+    let mut mask = 0;
+    let mut pos = 0;
+    loop {
+        mask |= 1 << pos;
+        pos += 1;
+        if pos >= size {
+            break;
+        }
+    }
+    mask
+}
+
+pub fn part_1_number_len<const NUMBER_SIZE: usize>(input: &str) -> u32 {
+    let mut outputs = [0u16; NUMBER_SIZE];
+
+    for chunk in input.as_bytes().chunks(NUMBER_SIZE + 1) {
+        for (output, num) in outputs.iter_mut().zip(chunk) {
+            *output += u16::from(0b1 & num);
+        }
     }
 
-    let total = (input.len() + 1) / (NUMBER_LEN + 1);
-    let gamma = outputs[..NUMBER_LEN].iter().fold(0, |acc, b| {
-        (acc << 1) + if *b > total as u32 / 2 { 1 } else { 0 }
+    let total = (input.len() + 1) / (NUMBER_SIZE + 1);
+    let gamma = outputs[..NUMBER_SIZE].iter().fold(0, |acc, b| {
+        (acc << 1) + if *b > total as u16 / 2 { 1 } else { 0 }
     });
-    let epsilon = 0b111111111111 ^ gamma;
-    dbg!(gamma, epsilon);
+    let epsilon = ones_mask(NUMBER_SIZE) ^ gamma;
     epsilon * gamma
+}
+
+pub fn part_1(input: &str) -> u32 {
+    part_1_number_len::<12>(input)
 }
 
 pub fn part_2(input: &str) -> u32 {
@@ -80,6 +98,23 @@ fn test_part_1_input() {
 }
 
 #[test]
+fn test_part_1_example() {
+    let input = "00100
+11110
+10110
+10111
+10101
+01111
+00111
+11100
+10000
+11001
+00010
+01010";
+    assert_eq!(part_1_number_len::<5>(input), 198);
+}
+
+#[test]
 fn test_part_2_example() {
     let input = "00100
 11110
@@ -93,7 +128,7 @@ fn test_part_2_example() {
 11001
 00010
 01010";
-    assert_eq!(part_2_number_len::<12>(input), 230);
+    assert_eq!(part_2_number_len::<5>(input), 230);
 }
 
 #[test]
