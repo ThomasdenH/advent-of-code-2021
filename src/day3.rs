@@ -1,7 +1,7 @@
 #[rustfmt::skip]
-mod code_golf;
+mod code_golf_part_1;
 
-pub use code_golf::z as part_1_code_golf;
+pub use code_golf_part_1::z as part_1_code_golf;
 
 const fn ones_mask(size: usize) -> u32 {
     let mut mask = 0;
