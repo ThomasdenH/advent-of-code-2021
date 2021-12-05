@@ -91,27 +91,26 @@ mod parse {
 }
 
 pub fn part_1(input: &str) -> usize {
-    let mut seen = vec![0_u8; 1024 * 1024];
+    let mut seen = vec![u8::MAX - 1; 1024 * 1024];
     parse::entire_input(input.as_bytes())
         .filter(LineSegment::is_horizontal_or_vertical)
         .flat_map(LineSegment::points)
         .map(|Coordinate { x, y }| (x as usize) << 10 | (y as usize))
         .filter(|&index| {
-            seen[index] += 1;
-            seen[index] == 2
+            seen[index] = seen[index].wrapping_add(1);
+            seen[index] == 0
         })
         .count()
 }
 
 pub fn part_2(input: &str) -> usize {
-    let mut seen = vec![0_u8; 1024 * 1024];
+    let mut seen = vec![u8::MAX - 1; 1024 * 1024];
     parse::entire_input(input.as_bytes())
         .flat_map(LineSegment::points)
-        .inspect(|Coordinate { x, y }| assert!(*x < 1024 && *y < 1024))
         .map(|Coordinate { x, y }| (x as usize) << 10 | (y as usize))
         .filter(|&index| {
-            seen[index] += 1;
-            seen[index] == 2
+            seen[index] = seen[index].wrapping_add(1);
+            seen[index] == 0
         })
         .count()
 }
