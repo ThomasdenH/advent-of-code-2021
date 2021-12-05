@@ -1,4 +1,5 @@
 #[rustfmt::skip]
+#[allow(clippy::all)]
 mod code_golf_part_1;
 
 pub use code_golf_part_1::z as part_1_code_golf;

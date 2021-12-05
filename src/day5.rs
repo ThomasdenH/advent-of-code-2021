@@ -1,180 +1,119 @@
-use std::{ops::{Mul, Sub, DivAssign, Add}, collections::HashSet};
-
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 struct Coordinate {
-    x: i32,
-    y: i32
+    x: i16,
+    y: i16,
 }
 
-impl From<(i32, i32)> for Coordinate {
-    fn from((x, y): (i32, i32)) -> Self {
-        Coordinate {x,y}
-    }
-}
-
-impl Add<Vector> for Coordinate {
-    type Output = Coordinate;
-    fn add(self, Vector(dx, dy): Vector) -> Self::Output {
-        Coordinate {
-            x: self.x + dx,
-            y: self.y + dy
-        }
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-struct Vector(i32, i32);
-
-impl Vector {
-    fn gcd(&self) -> i32 {
-        if self.0 < 0 {
-            Vector(-self.0, self.1).gcd()
-        } else if self.1 < 0 {
-            Vector(self.0, -self.1).gcd()
-        } else if self.0 < self.1 {
-            Vector(self.1, self.0).gcd()
-        } else if self.1 == 0 {
-            self.0
-        } else if self.0 == 0 {
-            self.1
-        } else {
-            Vector(self.1, self.0 % self.1).gcd()
-        }
-    }
-}
-
-impl From<Coordinate> for Vector {
-    fn from(Coordinate { x, y }: Coordinate) -> Self {
-        Vector(x, y)
-    }
-}
-
-impl Sub for Vector {
-    type Output = Self;
-    fn sub(self, rhs: Vector) -> Self {
-        Vector(self.0 - rhs.0, self.1 - rhs.1)
-    }
-}
-
-impl DivAssign<i32> for Vector {
-    fn div_assign(&mut self, rhs: i32) {
-        *self = Vector(self.0 / rhs, self.1 / rhs)
-    }
-}
-
-impl Mul<i32> for Vector {
-    type Output = Self;
-    fn mul(self, rhs: i32) -> Self::Output {
-        Vector(self.0 * rhs, self.1 * rhs)
+impl From<(i16, i16)> for Coordinate {
+    fn from((x, y): (i16, i16)) -> Self {
+        Coordinate { x, y }
     }
 }
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 struct LineSegment {
     from: Coordinate,
-    to: Coordinate
+    to: Coordinate,
 }
 
 impl From<(Coordinate, Coordinate)> for LineSegment {
     fn from((from, to): (Coordinate, Coordinate)) -> Self {
-        LineSegment { from, to}
+        LineSegment { from, to }
     }
-}
-
-enum Direction {
-    Horizontal,
-    Vertical,
-    Other
 }
 
 impl LineSegment {
-    fn difference_vector(&self) -> Vector {
-        Vector::from(self.to) - Vector::from(self.from)
-    }
-
-    fn direction(&self) -> Direction {
-        if self.from.x == self.to.x {
-            Direction::Vertical
-        } else if self.from.y == self.to.y {
-            Direction::Horizontal
-        } else {
-            Direction::Other
-        }
-    }
-
     fn is_horizontal_or_vertical(&self) -> bool {
-        matches!(self.direction(), Direction::Horizontal | Direction::Vertical)
+        self.from.x == self.to.x || self.from.y == self.to.y
     }
 
-    fn points(&self) -> impl Iterator<Item = Coordinate> + '_ {
-        let mut diff = self.difference_vector();
-        let gcd = diff.gcd();
-        diff /= diff.gcd();
-        (0..=gcd).map(move |i| self.from.add(diff * i))
+    fn points(self) -> impl Iterator<Item = Coordinate> {
+        let len = ((self.to.x - self.from.x).abs() | (self.to.y - self.from.y).abs()) as usize;
+        let dx = (self.to.x - self.from.x).signum();
+        let dy = (self.to.y - self.from.y).signum();
+        std::iter::successors(Some(self.from), move |Coordinate { x, y }| {
+            Some(Coordinate {
+                x: x + dx,
+                y: y + dy,
+            })
+        })
+        .take(len + 1)
     }
 }
 
 mod parse {
-    use nom::{sequence::{separated_pair}, character::complete::{digit1, newline}, IResult, combinator::{map, eof}, bytes::complete::tag, branch::alt, multi::separated_list1};
-
     use super::{Coordinate, LineSegment};
 
-    fn number(input: &[u8]) -> IResult<&[u8], i32> {
-        map(digit1, |number_str: &[u8]| number_str.iter().map(|d| i32::from(d & 0b1111)).fold(0, |acc, d| 10 * acc + d))(input)
-    }
-    
-    fn coordinate(input: &[u8]) -> IResult<&[u8], Coordinate> {
-        map(separated_pair(number, tag(","), number), Coordinate::from)(input)
-    }
-    
-    fn line_segment(input: &[u8]) -> IResult<&[u8], LineSegment> {
-        map(separated_pair(coordinate, tag(" -> "), coordinate), LineSegment::from)(input)
+    fn number(input: &[u8]) -> (&[u8], i16) {
+        let (first, mut input) = input.split_first().unwrap();
+        debug_assert!(first.is_ascii_digit());
+        let mut acc = i16::from(first & 0b1111);
+        while let Some((b, new_input)) = input.split_first() {
+            if !b.is_ascii_digit() {
+                break;
+            }
+            acc *= 10;
+            acc += i16::from(b & 0b1111);
+            input = new_input;
+        }
+        (input, acc)
     }
 
-    pub(super) fn entire_input(input: &[u8]) -> IResult<&[u8], Vec<LineSegment>> {
-        separated_list1(newline, line_segment)(input)
+    fn coordinate(input: &[u8]) -> (&[u8], Coordinate) {
+        let (input, x) = number(input);
+        let (comma, input) = input.split_first().unwrap();
+        debug_assert_eq!(*comma, b',');
+        let (input, y) = number(input);
+        (input, Coordinate { x, y })
+    }
+
+    fn line_segment(input: &[u8]) -> (&[u8], LineSegment) {
+        let (input, from) = coordinate(input);
+        let (arrow, input) = input.split_at(4);
+        debug_assert_eq!(arrow, b" -> ");
+        let (input, to) = coordinate(input);
+        (input, LineSegment::from((from, to)))
+    }
+
+    pub(super) fn entire_input(input: &[u8]) -> impl Iterator<Item = LineSegment> + '_ {
+        let (input, segment) = line_segment(input);
+        std::iter::successors(Some((input, segment)), |(mut input, _segment)| {
+            if let Some((newline, new_input)) = input.split_first() {
+                debug_assert_eq!(*newline, b'\n');
+                input = new_input;
+                Some(line_segment(input))
+            } else {
+                None
+            }
+        })
+        .map(|(_, segment)| segment)
     }
 }
-
 
 pub fn part_1(input: &str) -> usize {
-    let (_, mut segments) = parse::entire_input(input.as_bytes()).unwrap();
-    segments.retain(LineSegment::is_horizontal_or_vertical);
-
-    let mut points_of_overlap = HashSet::new();
-
-    for (i, segment) in segments.iter().enumerate() {
-        for other_segment in segments.iter().skip(i + 1) {
-            for point_1 in segment.points() {
-                for point_2 in other_segment.points() {
-                    if point_1 == point_2 {
-                        points_of_overlap.insert(point_1);
-                    }
-                }
-            }
-        }
-    }
-    points_of_overlap.len()
+    let mut seen = vec![0_u8; 1024 * 1024];
+    parse::entire_input(input.as_bytes())
+        .filter(LineSegment::is_horizontal_or_vertical)
+        .flat_map(LineSegment::points)
+        .map(|Coordinate { x, y }| (x as usize) << 10 | (y as usize))
+        .filter(|&index| {
+            seen[index] += 1;
+            seen[index] == 2
+        })
+        .count()
 }
 
-
 pub fn part_2(input: &str) -> usize {
-    let (_, mut segments) = parse::entire_input(input.as_bytes()).unwrap();
-    
-    let mut points_of_overlap = HashSet::new();
-
-    for (i, segment) in segments.iter().enumerate() {
-        for other_segment in segments.iter().skip(i + 1) {
-            for point_1 in segment.points() {
-                for point_2 in other_segment.points() {
-                    if point_1 == point_2 {
-                        points_of_overlap.insert(point_1);
-                    }
-                }
-            }
-        }
-    }
-    points_of_overlap.len()
+    let mut seen = vec![0_u8; 1024 * 1024];
+    parse::entire_input(input.as_bytes())
+        .flat_map(LineSegment::points)
+        .inspect(|Coordinate { x, y }| assert!(*x < 1024 && *y < 1024))
+        .map(|Coordinate { x, y }| (x as usize) << 10 | (y as usize))
+        .filter(|&index| {
+            seen[index] += 1;
+            seen[index] == 2
+        })
+        .count()
 }
 
 #[test]
@@ -210,11 +149,11 @@ fn test_part_2_example() {
 #[test]
 fn test_part_1_input() {
     let input = include_str!("../input/2021/day5.txt");
-    assert_eq!(part_1(input), 69579);
+    assert_eq!(part_1(input), 7674);
 }
 
 #[test]
 fn test_part_2_input() {
     let input = include_str!("../input/2021/day5.txt");
-    assert_eq!(part_2(input), 14877);
+    assert_eq!(part_2(input), 20898);
 }
