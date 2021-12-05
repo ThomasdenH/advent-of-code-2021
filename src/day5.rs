@@ -206,3 +206,15 @@ fn test_part_2_example() {
 5,5 -> 8,2";
     assert_eq!(part_2(input), 12);
 }
+
+#[test]
+fn test_part_1_input() {
+    let input = include_str!("../input/2021/day5.txt");
+    assert_eq!(part_1(input), 69579);
+}
+
+#[test]
+fn test_part_2_input() {
+    let input = include_str!("../input/2021/day5.txt");
+    assert_eq!(part_2(input), 14877);
+}
