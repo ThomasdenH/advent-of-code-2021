@@ -1,14 +1,54 @@
-use std::{ops::{Add}, collections::{HashMap}, cmp::Ordering, iter::successors};
+use std::{
+    cmp::Ordering,
+    collections::HashMap,
+    hash::{Hash, Hasher, BuildHasher},
+    iter::successors,
+    ops::Add,
+};
 
-#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
+const A: u64 = 5306621708036795348;
+const B: u64 = 2147483659;
+
+#[derive(Default)]
+struct BuildSpecialHasher {
+}
+
+impl BuildHasher for BuildSpecialHasher {
+    type Hasher = SpecialHasher;
+    fn build_hasher(&self) -> Self::Hasher {
+        SpecialHasher::default()
+    }
+}
+
+#[derive(Default)]
+struct SpecialHasher {
+    hash: u64,
+}
+
+impl Hasher for SpecialHasher {
+    fn finish(&self) -> u64 {
+        self.hash
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        self.hash = bytes.iter().fold(self.hash, |mut h, next_byte| {
+            h ^= u64::from(*next_byte);
+            h *= B;
+            h += A;
+            h
+        });
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
 struct Coordinate {
     x: u16,
-    y: u16
+    y: u16,
 }
 
 impl From<(u16, u16)> for Coordinate {
     fn from((x, y): (u16, u16)) -> Self {
-        Coordinate {x, y}
+        Coordinate { x, y }
     }
 }
 
@@ -16,7 +56,7 @@ impl From<(u16, u16)> for Coordinate {
 enum Sign {
     Neg,
     Pos,
-    Nil
+    Nil,
 }
 
 impl From<Ordering> for Sign {
@@ -35,7 +75,7 @@ impl Add<Sign> for u16 {
         match rhs {
             Sign::Pos => self + 1,
             Sign::Neg => self - 1,
-            Sign::Nil => self
+            Sign::Nil => self,
         }
     }
 }
@@ -48,7 +88,7 @@ impl Add<Vector> for Coordinate {
     fn add(self, rhs: Vector) -> Self::Output {
         Coordinate {
             x: self.x + rhs.0,
-            y: self.y + rhs.1
+            y: self.y + rhs.1,
         }
     }
 }
@@ -56,12 +96,12 @@ impl Add<Vector> for Coordinate {
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 struct LineSegment {
     from: Coordinate,
-    to: Coordinate
+    to: Coordinate,
 }
 
 impl From<(Coordinate, Coordinate)> for LineSegment {
     fn from((from, to): (Coordinate, Coordinate)) -> Self {
-        LineSegment { from, to}
+        LineSegment { from, to }
     }
 }
 
@@ -79,7 +119,7 @@ impl LineSegment {
     }
 
     fn difference_vector(&self) -> Vector {
-        Vector (
+        Vector(
             self.to.x.cmp(&self.from.x).into(),
             self.to.y.cmp(&self.from.y).into(),
         )
@@ -96,50 +136,77 @@ impl LineSegment {
     fn points(self) -> impl Iterator<Item = Coordinate> {
         let direction_vector = self.difference_vector();
         let length = self.len();
-        successors(Some(self.from), move |point| Some(*point + direction_vector))
-            .take(usize::from(length))
+        successors(Some(self.from), move |point| {
+            Some(*point + direction_vector)
+        })
+        .take(usize::from(length))
     }
 }
 
 mod parse {
-    use nom::{sequence::{separated_pair, terminated}, character::complete::{digit1, newline}, IResult, combinator::{map, iterator, opt, ParserIterator}, bytes::complete::tag};
+    use nom::{
+        bytes::complete::tag,
+        character::complete::{digit1, newline},
+        combinator::{iterator, map, opt, ParserIterator},
+        sequence::{separated_pair, terminated},
+        IResult,
+    };
 
     use super::{Coordinate, LineSegment};
 
     fn number(input: &[u8]) -> IResult<&[u8], u16> {
-        map(digit1, |number_str: &[u8]| number_str.iter().map(|d| u16::from(d & 0b1111)).fold(0, |acc, d| 10 * acc + d))(input)
+        map(digit1, |number_str: &[u8]| {
+            number_str
+                .iter()
+                .map(|d| u16::from(d & 0b1111))
+                .fold(0, |acc, d| 10 * acc + d)
+        })(input)
     }
-    
+
     fn coordinate(input: &[u8]) -> IResult<&[u8], Coordinate> {
         map(separated_pair(number, tag(","), number), Coordinate::from)(input)
     }
-    
+
     fn line_segment(input: &[u8]) -> IResult<&[u8], LineSegment> {
-        map(separated_pair(coordinate, tag(" -> "), coordinate), LineSegment::from)(input)
+        map(
+            separated_pair(coordinate, tag(" -> "), coordinate),
+            LineSegment::from,
+        )(input)
     }
 
-    pub(super) fn entire_input<'a>(input: &'a [u8]) -> ParserIterator<&'a [u8], nom::error::Error<&'a [u8]>, impl FnMut(&'a [u8]) -> IResult<&'a [u8], LineSegment>> {
+    pub(super) fn entire_input<'a>(
+        input: &'a [u8],
+    ) -> ParserIterator<
+        &'a [u8],
+        nom::error::Error<&'a [u8]>,
+        impl FnMut(&'a [u8]) -> IResult<&'a [u8], LineSegment>,
+    > {
         iterator(input, terminated(line_segment, opt(newline)))
     }
 }
 
-
 pub fn part_1(input: &str) -> usize {
-    let points: HashMap<Coordinate, usize> = parse::entire_input(input.as_bytes())
+    let points: HashMap<Coordinate, bool, _> = HashMap::with_hasher(BuildSpecialHasher::default());
+    let points = parse::entire_input(input.as_bytes())
         .filter(LineSegment::is_horizontal_or_vertical)
         .flat_map(LineSegment::points)
-        .fold(HashMap::new(), |mut map, point| {
-            map.entry(point).and_modify(|count| *count += 1).or_insert(1);
+        .fold(points, |mut map, point| {
+            map.entry(point)
+                .and_modify(|seen| *seen = true)
+                .or_insert(false);
             map
         });
-    points.values().filter(|val| **val > 1).count()
+    points.values().filter(|val| **val).count()
 }
 
 pub fn part_2(input: &str) -> usize {
-    let points: HashMap<Coordinate, bool> = parse::entire_input(input.as_bytes())
+    let points:  HashMap<Coordinate, bool, _> = HashMap::with_hasher(BuildSpecialHasher::default());
+    let points = parse::entire_input(input.as_bytes())
         .flat_map(LineSegment::points)
-        .fold(HashMap::new(), |mut map, point| {
-            map.entry(point).and_modify(|seen| *seen = true).or_insert(false);
+        .fold(points, |mut map, point| {
+            map.entry(point)
+                .and_modify(|seen| *seen = true)
+                .or_insert(false);
             map
         });
     points.values().filter(|val| **val).count()
