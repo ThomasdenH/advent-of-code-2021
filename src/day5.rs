@@ -32,7 +32,10 @@ impl Hasher for SpecialHasher {
 
     fn write(&mut self, bytes: &[u8]) {
         self.hash = bytes.iter().fold(self.hash, |mut h, next_byte| {
-            h ^= u64::from(*next_byte);
+            for _ in 0..4 {
+                h = h.rotate_left(10);
+                h ^= u64::from(*next_byte);
+            }
             h *= B;
             h += A;
             h
