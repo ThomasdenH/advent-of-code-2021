@@ -1,10 +1,4 @@
-use nom::{
-    bytes::complete::{tag, take},
-    character::complete::newline,
-    combinator::map,
-    sequence::{terminated, tuple},
-    IResult,
-};
+use nom::IResult;
 
 pub fn part_1(input: &str) -> u32 {
     let (_, (numbers, mut cards)) = parse::parse(input.as_bytes())
@@ -51,49 +45,18 @@ const MARKED_MASK: u8 = 0b1000_0000;
 
 #[derive(PartialEq, Eq, Debug)]
 struct BingoCard {
+    // Most significant bit is used to mark seen numbers.
     numbers: [u8; 25],
 }
 
 impl BingoCard {
     fn parse(input: &[u8]) -> IResult<&[u8], BingoCard> {
         let mut numbers = [0; 25];
-        // Example card:
-        // 22 13 17 11  0
-        //  8  2 23  4 24
-        // 21  9 14 16  7
-        //  6 10  3 18  5
-        //  1 12 20 15 19
-        let (input, (a, b, c, d, e)) = terminated(BingoCard::parse_line, newline)(input)?;
-        numbers[0] = a;
-        numbers[1] = b;
-        numbers[2] = c;
-        numbers[3] = d;
-        numbers[4] = e;
-        let (input, (a, b, c, d, e)) = terminated(BingoCard::parse_line, newline)(input)?;
-        numbers[5] = a;
-        numbers[6] = b;
-        numbers[7] = c;
-        numbers[8] = d;
-        numbers[9] = e;
-        let (input, (a, b, c, d, e)) = terminated(BingoCard::parse_line, newline)(input)?;
-        numbers[10] = a;
-        numbers[11] = b;
-        numbers[12] = c;
-        numbers[13] = d;
-        numbers[14] = e;
-        let (input, (a, b, c, d, e)) = terminated(BingoCard::parse_line, newline)(input)?;
-        numbers[15] = a;
-        numbers[16] = b;
-        numbers[17] = c;
-        numbers[18] = d;
-        numbers[19] = e;
-        let (input, (a, b, c, d, e)) = BingoCard::parse_line(input)?;
-        numbers[20] = a;
-        numbers[21] = b;
-        numbers[22] = c;
-        numbers[23] = d;
-        numbers[24] = e;
-        Ok((input, BingoCard { numbers }))
+        let (bingo_card_bytes, remainder) = input.split_at(25 * 3 - 1);
+        for (bytes, n) in bingo_card_bytes.chunks(3).zip(numbers.iter_mut()) {
+            *n = 10 * (bytes[0] & 0b1111) + (bytes[1] & 0b1111);
+        }
+        Ok((remainder, BingoCard { numbers }))
     }
 
     fn mark(&mut self, num: u8) {
@@ -137,22 +100,6 @@ impl BingoCard {
         self.has_column() || self.has_row()
     }
 
-    fn parse_line(input: &[u8]) -> IResult<&[u8], (u8, u8, u8, u8, u8)> {
-        tuple((
-            terminated(BingoCard::parse_bingo_number, tag(" ")),
-            terminated(BingoCard::parse_bingo_number, tag(" ")),
-            terminated(BingoCard::parse_bingo_number, tag(" ")),
-            terminated(BingoCard::parse_bingo_number, tag(" ")),
-            BingoCard::parse_bingo_number,
-        ))(input)
-    }
-
-    fn parse_bingo_number(input: &[u8]) -> IResult<&[u8], u8> {
-        map(take(2usize), |num: &[u8]| {
-            (num[0] & 0b1111) * 10 + (num[1] & 0b1111)
-        })(input)
-    }
-
     fn unmarked_number_sum(&self) -> u32 {
         self.numbers
             .iter()
@@ -187,15 +134,6 @@ mod parse {
             separated_list1(tag("\n\n"), BingoCard::parse),
         ))(input)
     }
-}
-
-#[test]
-fn test_bingo_card_parse_line() {
-    let input = b" 8  2 23  4 24";
-    assert_eq!(
-        BingoCard::parse_line(input),
-        Ok(([].as_ref(), (8, 2, 23, 4, 24)))
-    );
 }
 
 #[test]
