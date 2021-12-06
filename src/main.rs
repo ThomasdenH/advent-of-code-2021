@@ -1,3 +1,6 @@
+#![feature(const_eval_limit)]
+#![const_eval_limit = "0"]
+
 mod day1;
 mod day2;
 mod day3;
