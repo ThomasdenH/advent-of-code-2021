@@ -15,19 +15,18 @@ pub fn part_2(input: &str) -> usize {
         .count()
 }
 
-fn parse_numbers(input: &str) -> impl Iterator<Item = u16> + '_ {
+fn parse_numbers(input: &str) -> impl Iterator<Item = u64> + '_ {
     let mut iter = input
         .as_bytes()
         .iter()
         .copied()
         .inspect(|&a| debug_assert!(a.is_ascii_digit() || a == b'\n'));
-    const NUMBER_MASK: u8 = 0b0100000;
     std::iter::from_fn(move || {
         iter.next().map(|x| {
             (&mut iter)
-                .take_while(|digit| digit & NUMBER_MASK != 0)
-                .map(|byte| u16::from(byte - b'0'))
-                .fold(u16::from(x - b'0'), |acc, digit| 10 * acc + digit)
+                .take_while(|b| *b != b'\n')
+                // Map to u64, preserve order
+                .fold(u64::from(x), |acc, digit| (acc << 8) | u64::from(digit))
         })
     })
 }
