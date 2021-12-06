@@ -1,70 +1,128 @@
+use std::{fmt::Debug};
+
+use nom::AsBytes;
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+struct Matrix<const HEIGHT: usize, const WIDTH: usize> {
+    m: [[usize; WIDTH]; HEIGHT]
+}
+
+impl<const I: usize, const K: usize> Debug for Matrix<I, K>  {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for i in 0..I {
+            write!(f, "[");
+            for k in 0..K {
+                if k != 0 {
+                    write!(f, "\t");
+                }
+                write!(f,"{}", self.m[i][k]);
+            }
+            writeln!(f,"]");
+        }
+        Ok(())
+    }
+}
+
+impl<const I: usize, const K: usize> Matrix<I, K> {
+    const fn mul<const J: usize>(&self, other: Matrix<K, J>) -> Matrix<I, J> {
+        let mut m: Matrix<I, J> = Matrix { m: [[0; J]; I]};
+        let mut i = I;
+        loop {
+            i -= 1;
+            let mut j = J;
+            loop {
+                j -= 1;
+                let mut k = K;
+                loop {
+                    k -= 1;
+                    m.m[i][j] += self.m[i][k] * other.m[k][j];
+                    if k == 0 {
+                        break;
+                    }
+                }
+                if j == 0 {
+                    break;
+                }
+            }
+            if i == 0 {
+                break;
+            }
+        }
+        m
+    }
+}
+
+impl<const I: usize> Matrix<I, I> {
+    const fn exp(&self, mut e: usize) -> Matrix<I, I> {
+        let mut result = *self;
+        loop {
+            e -= 1;
+            if e == 0 {
+                return result;
+            }
+            result = result.mul(*self);
+        }
+    }
+}
+
+impl Matrix<1, 1> {
+    const fn val(&self) -> usize {
+        self.m[0][0]
+    }
+}
+
+const MATRIX_ONE: Matrix<BUFFER_LENGTH, BUFFER_LENGTH> = Matrix { m: [
+    [0, 1, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 1, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 1, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 1, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 1, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 1, 0, 0],
+    [1, 0, 0, 0, 0, 0, 0, 1, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0]
+]};
+
+const BUFFER_LENGTH: usize = 9;
+const SUM_MATRIX: Matrix<1, BUFFER_LENGTH> = Matrix { m: [[1; BUFFER_LENGTH]] };
+/// In order to avoid a subtraction when parsing, don't subtract b'0'.
+/// Instead, use a transposition matrix, which can be compiled into the multiplication.
+const TRANSPOSITION: Matrix<BUFFER_LENGTH, BUFFER_LENGTH> = Matrix{ m: [
+    [0, 0, 0, 1, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 1, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 1, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 1, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 1, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 1, 0, 0, 0, 0, 0, 0],
+]};
+const MATRIX_80: Matrix<1, BUFFER_LENGTH> = SUM_MATRIX.mul(MATRIX_ONE.exp(80).mul(TRANSPOSITION));
+const MATRIX_256: Matrix<1, BUFFER_LENGTH> = SUM_MATRIX.mul(MATRIX_ONE.exp(256).mul(TRANSPOSITION));
+
+
 fn parse(input: &[u8]) -> impl Iterator<Item = u8> + '_ {
     input.iter()
         .step_by(2)
         .copied()
 }
 
-const BUFFER_LENGTH: usize = 9;
-
-#[derive(Debug)]
-struct FishBuffer {
-    fish_of_ages: [usize; BUFFER_LENGTH],
-    offset: usize
-}
-
-impl Default for FishBuffer {
-    fn default() -> Self {
-        FishBuffer {
-            fish_of_ages: [0; BUFFER_LENGTH],
-            offset: BUFFER_LENGTH - (usize::from(b'0') % BUFFER_LENGTH)
-        }
+fn matrix_from_input(input: &[u8]) -> Matrix<BUFFER_LENGTH, 1> {
+    let mut m = [[0]; BUFFER_LENGTH];
+    for f in parse(input.as_bytes()) {
+        m[usize::from(f) % BUFFER_LENGTH][0] += 1;
     }
-}
-
-impl FromIterator<u8> for FishBuffer {
-    fn from_iter<T: IntoIterator<Item = u8>>(iter: T) -> Self {
-        let mut buffer = FishBuffer::default();
-        for fish_age in iter.into_iter() {
-            buffer.add_fish_at_age(usize::from(fish_age), 1);
-        }
-        buffer
-    }
-}
-
-impl FishBuffer {
-    fn advance(&mut self) {
-        let fish_at_zero = self.fish_at_age(0);
-        self.offset += 1;
-        self.add_fish_at_age(6, fish_at_zero);
-    }
-
-    fn add_fish_at_age(&mut self, age: usize, amount: usize) {
-        self.fish_of_ages[(age + self.offset) % BUFFER_LENGTH] += amount;
-    }
-
-    fn fish_at_age(&mut self, age: usize) -> usize {
-        self.fish_of_ages[(age + self.offset) % BUFFER_LENGTH]
-    }
-
-    fn count_fish(&self) -> usize {
-        self.fish_of_ages.iter().sum()
-    }
-}
-
-pub fn fish_at_generation(input: &str, gen: usize) -> usize {
-    let mut buffer: FishBuffer = parse(input.as_bytes()).collect();
-    for _ in 0..gen {
-        buffer.advance();
-    }
-    buffer.count_fish()
+    Matrix { m }
 }
 
 pub fn part_1(input: &str) -> usize {
-    fish_at_generation(input, 80)
+    // Instead of multiplying A * b, do b^T * A^T.
+    MATRIX_80.mul(matrix_from_input(input.as_bytes())).val()
 }
 
 pub fn part_2(input: &str) -> usize {
-    fish_at_generation(input, 256)
+    MATRIX_256.mul(matrix_from_input(input.as_bytes())).val()
 }
 
 #[test]
@@ -89,4 +147,18 @@ fn test_example_part_2() {
 fn test_part_2_input() {
     let input = include_str!("../input/2021/day6.txt");
     assert_eq!(part_2(input), 1675781200288);
+}
+
+#[test]
+fn tests_with_matrices() {
+    let matrix = |s: &str| TRANSPOSITION.mul(matrix_from_input(s.as_bytes()));
+    let start_matrix = matrix("3,4,3,1,2");
+    assert_eq!(start_matrix, Matrix { m: [[0], [1], [1], [2], [1], [0], [0], [0], [0]]});
+    assert_eq!(MATRIX_ONE.mul(start_matrix), matrix("2,3,2,0,1"));
+    dbg!(matrix("2,3,2,0,1"));
+    dbg!(MATRIX_ONE);
+    dbg!(MATRIX_ONE.mul(matrix("2,3,2,0,1")));
+    assert_eq!(MATRIX_ONE.exp(2).mul(start_matrix), matrix("1,2,1,6,0,8"));
+    assert_eq!(MATRIX_ONE.exp(3).mul(start_matrix), matrix("0,1,0,5,6,7,8"));
+    assert_eq!(MATRIX_ONE.exp(4).mul(start_matrix), matrix("6,0,6,4,5,6,7,8,8"));
 }
