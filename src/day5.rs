@@ -1,98 +1,12 @@
-use std::{
-    cmp::Ordering,
-    collections::HashMap,
-    hash::{Hash, Hasher, BuildHasher},
-    iter::successors,
-    ops::Add,
-};
-
-const A: u64 = 5306621708036795348;
-const B: u64 = 2147483659;
-
-#[derive(Default)]
-struct BuildSpecialHasher {
-}
-
-impl BuildHasher for BuildSpecialHasher {
-    type Hasher = SpecialHasher;
-    fn build_hasher(&self) -> Self::Hasher {
-        SpecialHasher::default()
-    }
-}
-
-#[derive(Default)]
-struct SpecialHasher {
-    hash: u64,
-}
-
-impl Hasher for SpecialHasher {
-    fn finish(&self) -> u64 {
-        self.hash
-    }
-
-    fn write(&mut self, bytes: &[u8]) {
-        self.hash = bytes.iter().fold(self.hash, |mut h, next_byte| {
-            for _ in 0..4 {
-                h = h.rotate_left(10);
-                h ^= u64::from(*next_byte);
-            }
-            h *= B;
-            h += A;
-            h
-        });
-    }
-}
-
-#[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
-struct Coordinate {
-    x: u16,
-    y: u16,
-}
-
-impl From<(u16, u16)> for Coordinate {
-    fn from((x, y): (u16, u16)) -> Self {
-        Coordinate { x, y }
-    }
-}
-
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
-enum Sign {
-    Neg,
-    Pos,
-    Nil,
+struct Coordinate {
+    x: i16,
+    y: i16,
 }
 
-impl From<Ordering> for Sign {
-    fn from(ordering: Ordering) -> Sign {
-        match ordering {
-            Ordering::Greater => Sign::Pos,
-            Ordering::Equal => Sign::Nil,
-            Ordering::Less => Sign::Neg,
-        }
-    }
-}
-
-impl Add<Sign> for u16 {
-    type Output = u16;
-    fn add(self, rhs: Sign) -> Self::Output {
-        match rhs {
-            Sign::Pos => self + 1,
-            Sign::Neg => self - 1,
-            Sign::Nil => self,
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-struct Vector(Sign, Sign);
-
-impl Add<Vector> for Coordinate {
-    type Output = Coordinate;
-    fn add(self, rhs: Vector) -> Self::Output {
-        Coordinate {
-            x: self.x + rhs.0,
-            y: self.y + rhs.1,
-        }
+impl From<(i16, i16)> for Coordinate {
+    fn from((x, y): (i16, i16)) -> Self {
+        Coordinate { x, y }
     }
 }
 
@@ -108,111 +22,97 @@ impl From<(Coordinate, Coordinate)> for LineSegment {
     }
 }
 
-fn abs_diff(a: u16, b: u16) -> u16 {
-    if a > b {
-        a - b
-    } else {
-        b - a
-    }
-}
-
 impl LineSegment {
     fn is_horizontal_or_vertical(&self) -> bool {
         self.from.x == self.to.x || self.from.y == self.to.y
     }
 
-    fn difference_vector(&self) -> Vector {
-        Vector(
-            self.to.x.cmp(&self.from.x).into(),
-            self.to.y.cmp(&self.from.y).into(),
-        )
-    }
-
-    fn len(&self) -> u16 {
-        if self.from.x == self.to.x {
-            abs_diff(self.from.y, self.to.y)
-        } else {
-            abs_diff(self.from.x, self.to.x)
-        }
-    }
-
     fn points(self) -> impl Iterator<Item = Coordinate> {
-        let direction_vector = self.difference_vector();
-        let length = self.len();
-        successors(Some(self.from), move |point| {
-            Some(*point + direction_vector)
+        let len = ((self.to.x - self.from.x).abs() | (self.to.y - self.from.y).abs()) as usize;
+        let dx = (self.to.x - self.from.x).signum();
+        let dy = (self.to.y - self.from.y).signum();
+        std::iter::successors(Some(self.from), move |Coordinate { x, y }| {
+            Some(Coordinate {
+                x: x + dx,
+                y: y + dy,
+            })
         })
-        .take(usize::from(length))
+        .take(len + 1)
     }
 }
 
 mod parse {
-    use nom::{
-        bytes::complete::tag,
-        character::complete::{digit1, newline},
-        combinator::{iterator, map, opt, ParserIterator},
-        sequence::{separated_pair, terminated},
-        IResult,
-    };
-
     use super::{Coordinate, LineSegment};
 
-    fn number(input: &[u8]) -> IResult<&[u8], u16> {
-        map(digit1, |number_str: &[u8]| {
-            number_str
-                .iter()
-                .map(|d| u16::from(d & 0b1111))
-                .fold(0, |acc, d| 10 * acc + d)
-        })(input)
+    fn number(input: &[u8]) -> (&[u8], i16) {
+        let (first, mut input) = input.split_first().unwrap();
+        debug_assert!(first.is_ascii_digit());
+        let mut acc = i16::from(first & 0b1111);
+        while let Some((b, new_input)) = input.split_first() {
+            if !b.is_ascii_digit() {
+                break;
+            }
+            acc *= 10;
+            acc += i16::from(b & 0b1111);
+            input = new_input;
+        }
+        (input, acc)
     }
 
-    fn coordinate(input: &[u8]) -> IResult<&[u8], Coordinate> {
-        map(separated_pair(number, tag(","), number), Coordinate::from)(input)
+    fn coordinate(input: &[u8]) -> (&[u8], Coordinate) {
+        let (input, x) = number(input);
+        let (comma, input) = input.split_first().unwrap();
+        debug_assert_eq!(*comma, b',');
+        let (input, y) = number(input);
+        (input, Coordinate { x, y })
     }
 
-    fn line_segment(input: &[u8]) -> IResult<&[u8], LineSegment> {
-        map(
-            separated_pair(coordinate, tag(" -> "), coordinate),
-            LineSegment::from,
-        )(input)
+    fn line_segment(input: &[u8]) -> (&[u8], LineSegment) {
+        let (input, from) = coordinate(input);
+        let (arrow, input) = input.split_at(4);
+        debug_assert_eq!(arrow, b" -> ");
+        let (input, to) = coordinate(input);
+        (input, LineSegment::from((from, to)))
     }
 
-    pub(super) fn entire_input<'a>(
-        input: &'a [u8],
-    ) -> ParserIterator<
-        &'a [u8],
-        nom::error::Error<&'a [u8]>,
-        impl FnMut(&'a [u8]) -> IResult<&'a [u8], LineSegment>,
-    > {
-        iterator(input, terminated(line_segment, opt(newline)))
+    pub(super) fn entire_input(input: &[u8]) -> impl Iterator<Item = LineSegment> + '_ {
+        let (input, segment) = line_segment(input);
+        std::iter::successors(Some((input, segment)), |(mut input, _segment)| {
+            if let Some((newline, new_input)) = input.split_first() {
+                debug_assert_eq!(*newline, b'\n');
+                input = new_input;
+                Some(line_segment(input))
+            } else {
+                None
+            }
+        })
+        .map(|(_, segment)| segment)
     }
 }
 
 pub fn part_1(input: &str) -> usize {
-    let points: HashMap<Coordinate, bool, _> = HashMap::with_hasher(BuildSpecialHasher::default());
-    let points = parse::entire_input(input.as_bytes())
+    let mut seen = vec![u8::MAX - 1; 1024 * 1024];
+    parse::entire_input(input.as_bytes())
         .filter(LineSegment::is_horizontal_or_vertical)
         .flat_map(LineSegment::points)
-        .fold(points, |mut map, point| {
-            map.entry(point)
-                .and_modify(|seen| *seen = true)
-                .or_insert(false);
-            map
-        });
-    points.values().filter(|val| **val).count()
+        .map(|Coordinate { x, y }| (x as usize) << 10 | (y as usize))
+        .filter(|&index| {
+            seen[index] = seen[index].wrapping_add(1);
+            seen[index] == 0
+        })
+        .count()
 }
 
 pub fn part_2(input: &str) -> usize {
-    let points:  HashMap<Coordinate, bool, _> = HashMap::with_hasher(BuildSpecialHasher::default());
-    let points = parse::entire_input(input.as_bytes())
+    let mut seen = vec![u8::MAX - 1; 1024 * 1024];
+    parse::entire_input(input.as_bytes())
         .flat_map(LineSegment::points)
-        .fold(points, |mut map, point| {
-            map.entry(point)
-                .and_modify(|seen| *seen = true)
-                .or_insert(false);
-            map
-        });
-    points.values().filter(|val| **val).count()
+        .map(|Coordinate { x, y }| (x as usize) << 10 | (y as usize))
+        .filter(|&index| {
+            seen[index] = seen[index].wrapping_add(1);
+            seen[index] == 0
+        })
+        .count()
 }
 
 #[test]
