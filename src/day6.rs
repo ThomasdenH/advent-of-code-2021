@@ -1,15 +1,24 @@
 fn parse(input: &[u8]) -> impl Iterator<Item = u8> + '_ {
     input.iter()
         .step_by(2)
-        .map(|fish| *fish & 0b1111)
+        .copied()
 }
 
 const BUFFER_LENGTH: usize = 9;
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 struct FishBuffer {
     fish_of_ages: [usize; BUFFER_LENGTH],
     offset: usize
+}
+
+impl Default for FishBuffer {
+    fn default() -> Self {
+        FishBuffer {
+            fish_of_ages: [0; BUFFER_LENGTH],
+            offset: BUFFER_LENGTH - (usize::from(b'0') % BUFFER_LENGTH)
+        }
+    }
 }
 
 impl FromIterator<u8> for FishBuffer {
@@ -26,7 +35,6 @@ impl FishBuffer {
     fn advance(&mut self) {
         let fish_at_zero = self.fish_at_age(0);
         self.offset += 1;
-        self.offset %= BUFFER_LENGTH;
         self.add_fish_at_age(6, fish_at_zero);
     }
 
