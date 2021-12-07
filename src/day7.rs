@@ -1,8 +1,6 @@
 use std::cmp::Ordering;
 
-use itertools::Itertools;
-
-fn parse_numbers(input: &str) -> impl Iterator<Item = usize> + '_ {
+fn parse_numbers(input: &str) -> impl Iterator<Item = u32> + '_ {
     let mut iter = input
         .as_bytes()
         .iter()
@@ -12,15 +10,15 @@ fn parse_numbers(input: &str) -> impl Iterator<Item = usize> + '_ {
         iter.next().map(|x| {
             (&mut iter)
                 .take_while(|b| *b != b',')
-                .fold(usize::from(x - b'0'), |acc, digit| {
-                    10 * acc + usize::from(digit - b'0')
+                .fold(u32::from(x & 0b1111), |acc, digit| {
+                    10 * acc + u32::from(digit & 0b1111)
                 })
         })
     })
 }
 
 /// Find the k'th item if `input` would be sorted, even if it isn't.
-fn k_th(input: &mut [usize], k: usize) -> usize {
+fn k_th(input: &mut [u32], k: usize) -> u32 {
     debug_assert!(!input.is_empty());
     let pivot = input[0];
     let remaining_input = &mut input[1..];
@@ -37,7 +35,7 @@ fn k_th(input: &mut [usize], k: usize) -> usize {
     }
 }
 
-pub fn part_1(input: &str) -> usize {
+pub fn part_1(input: &str) -> u32 {
     let mut numbers: Vec<_> = parse_numbers(input).collect();
     let mid_point = numbers.len() / 2;
     let mid_point_value = k_th(&mut numbers, mid_point);
@@ -45,28 +43,22 @@ pub fn part_1(input: &str) -> usize {
     // However, the naive way is faster
     numbers
         .into_iter()
-        .map(|x| {
-            if x > mid_point_value {
-                x - mid_point_value
-            } else {
-                mid_point_value - x
-            }
-        })
+        .map(|x| x.abs_diff(mid_point_value))
         .sum()
 }
 
-pub fn part_2(input: &str) -> usize {
+pub fn part_2(input: &str) -> u32 {
     part_2_sized::<2000>(input)
 }
 
-fn part_2_sized<const MAX_VALUE: usize>(input: &str) -> usize {
+fn part_2_sized<const MAX_VALUE: usize>(input: &str) -> u32 {
     let mut frequency_table = vec![0; MAX_VALUE];
     let mut count = 0;
     let mut sum = 0;
     let mut sum_of_squares = 0;
     for number in parse_numbers(input) {
-        debug_assert!(number < MAX_VALUE, "number exceeds maximum value - 1!");
-        frequency_table[number] += 1;
+        debug_assert!((number as usize) < MAX_VALUE, "number exceeds maximum value - 1!");
+        frequency_table[number as usize] += 1;
         count += 1;
         sum += number;
         sum_of_squares += number * number;

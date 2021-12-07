@@ -1,5 +1,6 @@
 // Used for day 7
 #![feature(iter_partition_in_place)]
+#![feature(int_abs_diff)]
 // Used for day 6
 #![feature(const_eval_limit)]
 #![const_eval_limit = "0"]
