@@ -153,7 +153,7 @@ fn test_part_1_input() {
 #[test]
 fn test_part_2_input() {
     let input = include_str!("../input/2021/day7.txt");
-    assert_eq!(part_2(input), 95476244);
+    assert_eq!(part_2_incrementing_mu(input), 95476244);
 }
 
 #[test]
