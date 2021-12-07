@@ -1,5 +1,3 @@
-use std::char::MAX;
-
 fn parse_numbers(input: &str) -> impl Iterator<Item = usize> + '_ {
     let mut iter = input
         .as_bytes()
@@ -10,12 +8,12 @@ fn parse_numbers(input: &str) -> impl Iterator<Item = usize> + '_ {
         iter.next().map(|x| {
             (&mut iter)
                 .take_while(|b| *b != b',')
-                // Map to u64, preserve order
                 .fold(usize::from(x - b'0'), |acc, digit| 10 * acc + usize::from(digit - b'0'))
         })
     })
 }
 
+/// Find the k'th item if `input` would be sorted, even if it isn't.
 fn k_th(input: &mut [usize], k: usize) -> usize {
     let len = input.len();
     debug_assert!(len > 0);
@@ -32,14 +30,11 @@ fn k_th(input: &mut [usize], k: usize) -> usize {
 
 pub fn part_1(input: &str) -> usize {
     let mut numbers: Vec<_> = parse_numbers(input).collect();
-    let mid_point = numbers.len() / 2;
+    let len = numbers.len();
+    let mid_point = len / 2;
     let mid_point_value = k_th(&mut numbers, mid_point);
-    numbers.into_iter()
-        .map(|item| if item > mid_point_value {
-            item - mid_point_value
-        } else {
-            mid_point_value - item
-        }).sum()
+    // As a result of computing the kth point, the array is actually partitioned in < k, > k.
+    numbers[len - mid_point..].iter().copied().sum::<usize>() - numbers[..mid_point].iter().copied().sum::<usize>()
 }
 
 pub fn part_2<const MAX_VALUE: usize>(input: &str) -> usize {
@@ -49,7 +44,7 @@ pub fn part_2<const MAX_VALUE: usize>(input: &str) -> usize {
     let max = MAX_VALUE;
     while min != max {
         let mu_guess = (min + max) / 2;
-        
+        unimplemented!()
     }
     min
 }
@@ -58,6 +53,13 @@ pub fn part_2<const MAX_VALUE: usize>(input: &str) -> usize {
 fn test_part_1_example_input() {
     let input = "16,1,2,0,4,2,7,1,2,14";
     assert_eq!(part_1(input), 37);
+}
+
+#[test]
+fn test_odd_even() {
+    // Odd and even should both work, so care should be taken with the middle value
+    assert_eq!(part_1("0,1,2"), 2);
+    assert_eq!(part_1("0,1,1,2"), 2);
 }
 
 #[test]
