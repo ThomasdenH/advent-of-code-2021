@@ -21,5 +21,5 @@ aoc_main::main! {
     day4 => part_1, part_2;
     day5 => part_1, part_2;
     day6 => part_1, part_2;
-    day7 => part_1, part_2;
+    day7 => part_1, part_2_incrementing_mu, part_2_mean;
 }
