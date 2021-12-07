@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use itertools::Itertools;
 
 fn parse_numbers(input: &str) -> impl Iterator<Item = usize> + '_ {
@@ -19,23 +21,25 @@ fn parse_numbers(input: &str) -> impl Iterator<Item = usize> + '_ {
 
 /// Find the k'th item if `input` would be sorted, even if it isn't.
 fn k_th(input: &mut [usize], k: usize) -> usize {
-    let len = input.len();
-    debug_assert!(len > 0);
+    debug_assert!(!input.is_empty());
     let pivot = input[0];
-    let pivot_around = input.iter_mut().partition_in_place(|item| *item < pivot);
-    if k < pivot_around {
-        k_th(&mut input[..pivot_around], k)
-    } else if k > pivot_around {
-        k_th(&mut input[(pivot_around + 1)..], k - pivot_around - 1)
-    } else {
-        pivot
+    let remaining_input = &mut input[1..];
+    let order_of_pivot = remaining_input
+        .iter_mut()
+        .partition_in_place(|item| *item < pivot);
+    match k.cmp(&order_of_pivot) {
+        Ordering::Greater => k_th(
+            &mut remaining_input[order_of_pivot..],
+            k - 1 - order_of_pivot,
+        ),
+        Ordering::Equal => pivot,
+        Ordering::Less => k_th(&mut remaining_input[..order_of_pivot], k),
     }
 }
 
 pub fn part_1(input: &str) -> usize {
     let mut numbers: Vec<_> = parse_numbers(input).collect();
-    let len = numbers.len();
-    let mid_point = len / 2;
+    let mid_point = numbers.len() / 2;
     let mid_point_value = k_th(&mut numbers, mid_point);
     // As a result of computing the kth point, the array is actually partitioned in < k, > k.
     // However, the naive way is faster
@@ -71,9 +75,8 @@ fn part_2_sized<const MAX_VALUE: usize>(input: &str) -> usize {
     let mut numbers_less_than_eq_mu = 0;
     let mut fuel_at_mu = (sum + sum_of_squares) / 2;
     let mut mu_times_count = 0;
-    (0..)
-        .zip(frequency_table.into_iter())
-        .map(|(mu, numbers_eq_to_mu)| {
+    frequency_table.into_iter()
+        .map(|numbers_eq_to_mu| {
             // Compute for mu
             numbers_less_than_eq_mu += numbers_eq_to_mu;
             fuel_at_mu += mu_times_count;
@@ -95,6 +98,12 @@ fn part_2_sized<const MAX_VALUE: usize>(input: &str) -> usize {
 fn test_part_1_example_input() {
     let input = "16,1,2,0,4,2,7,1,2,14";
     assert_eq!(part_1(input), 37);
+}
+
+#[test]
+fn test_part_1_duplicate_midpoint() {
+    let input = "0,1,1,1,1,1,1,1,2,3";
+    assert_eq!(part_1(input), 4);
 }
 
 #[test]
