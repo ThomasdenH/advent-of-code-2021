@@ -75,23 +75,27 @@ fn part_2_sized<const MAX_VALUE: usize>(input: &str) -> usize {
     let mut numbers_less_than_eq_mu = 0;
     let mut fuel_at_mu = (sum + sum_of_squares) / 2;
     let mut mu_times_count = 0;
-    frequency_table.into_iter()
-        .map(|numbers_eq_to_mu| {
-            // Compute for mu
-            numbers_less_than_eq_mu += numbers_eq_to_mu;
-            fuel_at_mu += mu_times_count;
-            fuel_at_mu -= sum;
-            fuel_at_mu += numbers_less_than_eq_mu;
+    for numbers_eq_to_mu in frequency_table {
+        // mu is equal to the iteration index but not actually used itself
+        // (0..)
 
-            // For mu + 1
-            mu_times_count += count;
-            fuel_at_mu
-        })
-        .tuple_windows()
-        .take_while(|(fuel, fuel_next)| fuel_next < fuel)
-        .last()
-        .unwrap()
-        .1
+        // Compute for mu
+        numbers_less_than_eq_mu += numbers_eq_to_mu;
+
+        let fuel_increase = mu_times_count + numbers_less_than_eq_mu;
+        let fuel_decrease = sum;
+
+        if fuel_increase > fuel_decrease {
+            break;
+        }
+
+        // For mu + 1
+        mu_times_count += count;
+
+        fuel_at_mu += fuel_increase;
+        fuel_at_mu -= fuel_decrease;
+    }
+    fuel_at_mu
 }
 
 #[test]
