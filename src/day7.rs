@@ -34,7 +34,12 @@ pub fn part_1(input: &str) -> usize {
     let mid_point = len / 2;
     let mid_point_value = k_th(&mut numbers, mid_point);
     // As a result of computing the kth point, the array is actually partitioned in < k, > k.
-    numbers[len - mid_point..].iter().copied().sum::<usize>() - numbers[..mid_point].iter().copied().sum::<usize>()
+    // However, the naive way is faster
+    numbers.into_iter().map(|x| if x > mid_point_value {
+        x - mid_point_value
+    } else {
+        mid_point_value - x
+    }).sum()
 }
 
 pub fn part_2<const MAX_VALUE: usize>(input: &str) -> usize {
