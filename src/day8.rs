@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 fn parse_digit(input: &mut &[u8]) -> Option<u8> {
     if let Some((&first, remaining)) = input.split_first() {
         *input = remaining;
@@ -11,13 +9,12 @@ fn parse_digit(input: &mut &[u8]) -> Option<u8> {
             b'e' => Some(0b10000),
             b'f' => Some(0b100000),
             b'g' => Some(0b10000000),
-            _ => None
+            _ => None,
         }
     } else {
         None
     }
 }
-
 fn parse_segment(input: &mut &[u8]) -> Option<u8> {
     parse_digit(input)
         .map(|first| std::iter::from_fn(|| parse_digit(input)).fold(first, |acc, d| acc | d))
@@ -40,17 +37,13 @@ fn parse_line(input: &mut &[u8]) -> ([u8; 10], [u8; 4]) {
 
 pub fn part_1(input: &str) -> usize {
     let mut input = input.as_bytes();
-    std::iter::from_fn(|| {
-        Some(&mut input)
-            .filter(|i| !i.is_empty())
-            .map(parse_line)
-    })
-    .flat_map(|(_, display)| display.into_iter())
-    .filter(|digit| match digit.count_ones() {
-        2 | 4 | 3 | 7 => true,
-        _ => false,
-    })
-    .count()
+    std::iter::from_fn(|| Some(&mut input).filter(|i| !i.is_empty()).map(parse_line))
+        .flat_map(|(_, display)| display.into_iter())
+        .filter(|digit| match digit.count_ones() {
+            2 | 4 | 3 | 7 => true,
+            _ => false,
+        })
+        .count()
 }
 
 fn find_one_and_four(digits: [u8; 10]) -> (u8, u8) {
@@ -91,7 +84,7 @@ impl Decoder {
                 (3, _, _) => 7,
                 (7, _, _) => 8,
                 (6, 2, 4) => 9,
-                other => unreachable!("unexpected combination: {:?}", other)
+                other => unreachable!("unexpected combination: {:?}", other),
             };
             encodings[decoded] = digit;
         }
@@ -103,19 +96,70 @@ impl Decoder {
     }
 
     fn decode_display(&self, d: [u8; 4]) -> u16 {
-        d.into_iter().map(|d| self.decode_digit(d)).fold(0, |acc, d| 10 * acc + d)
+        d.into_iter()
+            .map(|d| self.decode_digit(d))
+            .fold(0, |acc, d| 10 * acc + d)
     }
 }
 
 pub fn part_2(input: &str) -> usize {
     let mut input = input.as_bytes();
+    std::iter::from_fn(|| Some(&mut input).filter(|i| !i.is_empty()).map(parse_line))
+        .map(|(digits, display)| usize::from(Decoder::from_digits(digits).decode_display(display)))
+        .sum()
+}
+
+fn compute_frequency_table(input: &mut impl Iterator<Item = u8>) -> [u8; 8] {
+    let mut frequency_table = [0; 8];
+    for b in input {
+        match b {
+            b'|' => {
+                break;
+            }
+            b'a'..=b'g' => frequency_table[usize::from(b & 0b111)] += 1,
+            _ => {}
+        }
+    }
+    frequency_table
+}
+
+fn decode_number(input: &mut impl Iterator<Item = u8>, frequency_table: [u8; 8]) -> usize {
+    (0..4)
+        .map(|_| {
+            input
+                .take_while(|b| (b'a'..=b'g').contains(b))
+                .map(|b| frequency_table[usize::from(b & 0b111)])
+                .sum()
+        })
+        .map(|sum| match sum {
+            42 => 0,
+            17 => 1,
+            34 => 2,
+            39 => 3,
+            30 => 4,
+            37 => 5,
+            41 => 6,
+            25 => 7,
+            49 => 8,
+            _ => {
+                debug_assert_eq!(sum, 45);
+                9
+            }
+        })
+        .fold(0, |acc, x| acc * 10 + x)
+}
+
+pub fn part_2_frequency_table(input: &str) -> usize {
+    let mut input = input.bytes();
+    let mut sum = 0;
     std::iter::from_fn(|| {
-        Some(&mut input)
-            .filter(|i| !i.is_empty())
-            .map(parse_line)
-    })
-    .map(|(digits, display)| {
-        usize::from(Decoder::from_digits(digits).decode_display(display))
+        if input.len() == 0 {
+            None
+        } else {
+            let frequency_table = compute_frequency_table(&mut input);
+            input.next();
+            Some(decode_number(&mut input, frequency_table))
+        }
     })
     .sum()
 }
