@@ -1,5 +1,5 @@
 use core::num;
-use std::{ops::Add, iter::Sum};
+use std::{iter::Sum, ops::Add};
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 struct SimplifiedNumber(u8);
