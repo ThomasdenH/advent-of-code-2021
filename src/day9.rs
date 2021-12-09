@@ -84,9 +84,10 @@ fn part_2_generic<const LINE_SIZE: usize>(input: &str) -> usize {
     for (index, b) in input.bytes().enumerate() {
         let x = index % LINE_SIZE;
         match b {
-            b'9' => {},
-            b'\n' => {
+            b'9' => {
                 // No basin
+            },
+            b'\n' => {
                 basin_above = current_basin;
                 current_basin = [MaybeBasin::no_basin(); LINE_SIZE];
             },
