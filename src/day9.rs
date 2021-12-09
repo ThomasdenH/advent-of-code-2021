@@ -84,45 +84,42 @@ fn part_2_generic<const LINE_SIZE: usize>(input: &str) -> usize {
     let mut basin_size = Vec::new();
     // The next basin index to use
     let mut next_basin = MaybeBasin(0);
-    let mut basin_above = [MaybeBasin::no_basin(); LINE_SIZE];
-    let mut current_basin = [MaybeBasin::no_basin(); LINE_SIZE];
+    // Basins already associated with a tile
+    let mut associated_basins = [MaybeBasin::no_basin(); LINE_SIZE];
     for (index, b) in input.bytes().enumerate() {
         let x = index % LINE_SIZE;
         match b {
-            b'9' => {
+            b'9' | b'\n' => {
                 // No basin
-            }
-            b'\n' => {
-                basin_above = current_basin;
-                current_basin = [MaybeBasin::no_basin(); LINE_SIZE];
+                associated_basins[x] = MaybeBasin::no_basin();
             }
             _ => {
-                let basin_above = basin_above[x];
+                let basin_above = associated_basins[x];
                 let basin_to_the_left = if x >= 1 {
-                    current_basin[x - 1]
+                    associated_basins[x - 1]
                 } else {
                     MaybeBasin::no_basin()
                 };
                 if basin_to_the_left.is_a_basin() {
                     if basin_above.is_no_basin() || basin_above == basin_to_the_left {
-                        current_basin[x] = basin_to_the_left;
+                        associated_basins[x] = basin_to_the_left;
                         basin_size[basin_to_the_left] += 1;
                     } else {
                         for previous in (0..x).rev() {
-                            if current_basin[previous] != basin_to_the_left {
+                            if associated_basins[previous] != basin_to_the_left {
                                 break;
                             }
-                            current_basin[previous] = basin_above
+                            associated_basins[previous] = basin_above;
                         }
-                        current_basin[x] = basin_above;
                         basin_size[basin_above] += basin_size[basin_to_the_left] + 1;
                     }
                 } else if basin_above.is_no_basin() {
+                    assert_eq!(basin_size.len(), next_basin.0); // For some reason actually using this is not faster
                     basin_size.push(1);
-                    current_basin[x] = next_basin;
+                    associated_basins[x] = next_basin;
                     next_basin.increment();
                 } else {
-                    current_basin[x] = basin_above;
+                    associated_basins[x] = basin_above;
                     basin_size[basin_above] += 1;
                 };
             }
