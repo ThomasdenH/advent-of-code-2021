@@ -1,23 +1,27 @@
-use std::{ops::{Index, IndexMut}, fmt};
+use std::{
+    fmt,
+    ops::{Index, IndexMut}, iter, cmp::Ordering,
+};
+
+use itertools::Itertools;
 
 pub fn part_1_generic<const LINE_SIZE: usize>(input: &str) -> usize {
     debug_assert_eq!(input.find('\n'), Some(LINE_SIZE - 1));
-    let input = input.as_bytes();
-    let mut sum = 0;
-    let height = input.len() / LINE_SIZE + 1;
-    for y in 0..height {
-        for x in 0..(LINE_SIZE - 1) {
-            let index = y * LINE_SIZE + x;
-            let digit = input[index];
-            if (x == 0 || digit < input[index - 1])
-                && (x == LINE_SIZE - 2 || digit < input[index + 1])
-                && (y == 0 || digit < input[index - LINE_SIZE])
-                && (y == height - 1 || digit < input[index + LINE_SIZE]) {
-                    sum += usize::from(digit - b'0' + 1);
-            }
-        }
-    }
-    sum
+    iter::once(b'\n')
+        .chain(input.bytes())
+        .chain(iter::once(b'\n'))
+        .map(|b| b ^ b'0')
+        .tuple_windows()
+        .map(|(a, b)| (a.cmp(&b), b))
+        .tuple_windows()
+        .map(|((cmp1, val1), (cmp2, _))| (cmp1, cmp2, val1))
+        .enumerate()
+        .filter(|(index, (cmp1, cmp2, value))| *cmp1 == Ordering::Greater
+            && *cmp2 == Ordering::Less
+            && (*index < LINE_SIZE || *value < b'0' ^ input.as_bytes()[*index - LINE_SIZE])
+            && (*index >= input.len() - LINE_SIZE || *value < b'0' ^ input.as_bytes()[*index + LINE_SIZE]))
+        .map(|(_index, (_cmp1, _cmp2, value))| usize::from(value + 1))
+        .sum()
 }
 
 pub fn part_1(input: &str) -> usize {
@@ -72,7 +76,8 @@ impl<T> IndexMut<MaybeBasin> for Vec<T> {
 }
 
 fn part_2_generic<const LINE_SIZE: usize>(input: &str) -> usize {
-    // A map to basin number/size
+    debug_assert_eq!(input.find('\n'), Some(LINE_SIZE - 1));
+
     // Really need to comput size of areas != 9.
 
     // Stores the size of a basin by their index
@@ -86,14 +91,18 @@ fn part_2_generic<const LINE_SIZE: usize>(input: &str) -> usize {
         match b {
             b'9' => {
                 // No basin
-            },
+            }
             b'\n' => {
                 basin_above = current_basin;
                 current_basin = [MaybeBasin::no_basin(); LINE_SIZE];
-            },
+            }
             _ => {
                 let basin_above = basin_above[x];
-                let basin_to_the_left = if x >= 1 { current_basin[x - 1] } else { MaybeBasin::no_basin() };
+                let basin_to_the_left = if x >= 1 {
+                    current_basin[x - 1]
+                } else {
+                    MaybeBasin::no_basin()
+                };
                 if basin_to_the_left.is_a_basin() {
                     if basin_above.is_no_basin() || basin_above == basin_to_the_left {
                         current_basin[x] = basin_to_the_left;
@@ -122,7 +131,9 @@ fn part_2_generic<const LINE_SIZE: usize>(input: &str) -> usize {
     let size = basin_size.len();
     basin_size
         .select_nth_unstable(size.saturating_sub(4))
-        .2.iter().copied()
+        .2
+        .iter()
+        .copied()
         .product()
 }
 
