@@ -126,7 +126,7 @@ fn decode_digit(input: &mut impl Iterator<Item = u8>, frequency_table: [u8; 256]
     .take_while(|b| *b > (b'a' - 1))
     .map(|b| frequency_table[usize::from(b)])
     .sum();
-    match sum {
+    radix * match sum {
         17 => 1,
         34 => 2,
         39 => 3,
@@ -146,7 +146,6 @@ fn decode_number(input: &mut impl Iterator<Item = u8>, frequency_table: [u8; 256
 
 pub fn part_2_frequency_table(input: &str) -> usize {
     let mut input = input.bytes();
-    let mut sum = 0;
     std::iter::from_fn(|| {
         if input.len() == 0 {
             None
