@@ -39,10 +39,7 @@ pub fn part_1(input: &str) -> usize {
     let mut input = input.as_bytes();
     std::iter::from_fn(|| Some(&mut input).filter(|i| !i.is_empty()).map(parse_line))
         .flat_map(|(_, display)| display.into_iter())
-        .filter(|digit| match digit.count_ones() {
-            2 | 4 | 3 | 7 => true,
-            _ => false,
-        })
+        .filter(|digit| matches!(digit.count_ones(), 2 | 4 | 3 | 7))
         .count()
 }
 
@@ -181,4 +178,22 @@ gbdfcae bgc cg cgb
 gcafb gcf dcaebfg ecagb gf abcdeg gaef cafbge fdbac fegbdc |
 fgae cfgab fg bagce";
     assert_eq!(part_1(input), 26);
+}
+
+#[test]
+fn test_part_1_input() {
+    let input = include_str!("../input/2021/day8.txt");
+    assert_eq!(part_1(input), 245);
+}
+
+#[test]
+fn test_part_2_input() {
+    let input = include_str!("../input/2021/day8.txt");
+    assert_eq!(part_2(input), 983026);
+}
+
+#[test]
+fn test_part_2_frequency_table_input() {
+    let input = include_str!("../input/2021/day8.txt");
+    assert_eq!(part_2_frequency_table(input), 983026);
 }
