@@ -106,6 +106,8 @@ pub fn part_2(input: &str) -> usize {
         .sum()
 }
 
+/// Build a frequency table. Actually, to avoid doing any mapping operation it
+/// has 256 entries. Only table[b'a'..=b'g'] are useful.
 fn compute_frequency_table(input: &mut impl Iterator<Item = u8>) -> [u8; 256] {
     let mut frequency_table = [0; 256];
     for b in input {
