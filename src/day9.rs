@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{ops::{Index, IndexMut}, fmt};
 
 pub fn part_1_generic<const LINE_SIZE: usize>(input: &str) -> usize {
     debug_assert_eq!(input.find('\n'), Some(LINE_SIZE - 1));
@@ -25,112 +25,109 @@ pub fn part_1(input: &str) -> usize {
     part_1_generic::<LINE_SIZE>(input)
 }
 
+#[derive(Copy, Clone, Eq, PartialEq)]
+struct MaybeBasin(usize);
+
+impl fmt::Debug for MaybeBasin {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_a_basin() {
+            write!(f, "{}", self.0)
+        } else {
+            write!(f, "_")
+        }
+    }
+}
+
+impl MaybeBasin {
+    fn is_no_basin(&self) -> bool {
+        self.0 == usize::MAX
+    }
+
+    fn no_basin() -> Self {
+        MaybeBasin(usize::MAX)
+    }
+
+    fn is_a_basin(&self) -> bool {
+        !self.is_no_basin()
+    }
+
+    fn increment(&mut self) {
+        self.0 = self.0.wrapping_add(1);
+    }
+}
+
+impl<T> Index<MaybeBasin> for Vec<T> {
+    type Output = T;
+    fn index(&self, index: MaybeBasin) -> &Self::Output {
+        debug_assert!(index.is_a_basin());
+        &self[index.0]
+    }
+}
+
+impl<T> IndexMut<MaybeBasin> for Vec<T> {
+    fn index_mut(&mut self, index: MaybeBasin) -> &mut Self::Output {
+        debug_assert!(index.is_a_basin());
+        &mut self[index.0]
+    }
+}
+
 fn part_2_generic<const LINE_SIZE: usize>(input: &str) -> usize {
     // A map to basin number/size
     // Really need to comput size of areas != 9.
-    let mut basin_size = HashMap::new();
-    let mut next_basin = 0;
-    let mut basin_above = [0; LINE_SIZE];
-    let mut current_basin = [0; LINE_SIZE];
-    let mut currently_in_basin = None;
+
+    // Stores the size of a basin by their index
+    let mut basin_size = Vec::new();
+    // The next basin index to use
+    let mut next_basin = MaybeBasin(0);
+    let mut basin_above = [MaybeBasin::no_basin(); LINE_SIZE];
     for line in input.as_bytes().chunks(LINE_SIZE) {
+        let mut current_basin = [MaybeBasin::no_basin(); LINE_SIZE];
         for (x, b) in line.into_iter().enumerate() {
             match b {
                 b'9' | b'\n' => {
                     // No basin
-                    currently_in_basin = None;
                 },
                 _ => {
-                    // There are a couple of situations:
-                    // - Either we are already working in a basin from the left
-                    //   and there is a 9 above. Then just keep working in the same basin.
-                    // - Or, we are not yet working in a basin from the left but there is a basin above.
-                    // - Or, we are working in a basin from the left and there is a basin above. These may
-                    //   be the same but it might be that they should be merged.
-                    /* for i in basin_above.iter() {
-                        print!("{}", i);
+                    /*for i in basin_above.iter() {
+                        print!("{:?}", i);
                     }
                     println!();
-
                     for i in current_basin.iter() {
-                        print!("{}", i);
+                        print!("{:?}", i);
                     }
                     println!();
-
-                    print!("{}", std::str::from_utf8(line).unwrap());
-
-                    for i in (0..LINE_SIZE) {
-                        if i == x {
-                            print!("^");
-                        } else {
-                            print!(" ");
-                        }
-                    } */
-                    // println!();
-
+                    print!("{}", std::str::from_utf8(line).unwrap());*/
                     let basin_above = basin_above[x];
-                    let basin = if let Some(basin_to_the_left) = currently_in_basin {
-                        if basin_above == 0 {
-                            // println!(" -> To the left!");
-                            // 99 
-                            // 1X -> 1
-                            basin_to_the_left
-                        } else if basin_above == basin_to_the_left {
-                            // println!(" -> Identical!");
-                            // Not a problem
-                            // 92
-                            // 2X -> 2
-                            basin_above
+                    let basin_to_the_left = if x >= 1 { current_basin[x - 1] } else { MaybeBasin::no_basin() };
+                    if basin_to_the_left.is_a_basin() {
+                        if basin_above.is_no_basin() || basin_above == basin_to_the_left {
+                            current_basin[x] = basin_to_the_left;
+                            basin_size[basin_to_the_left] += 1;
                         } else {
-                            // println!(" -> Merge!");
-                            // Trouble!
-                            // 91
-                            // 2X -> Merge!
-
-                            // Take the one above and replace all to the left
                             for previous in (0..x).rev() {
-                                // dbg!(x, previous, current_basin[previous], basin_to_the_left);
                                 if current_basin[previous] != basin_to_the_left {
                                     break;
                                 }
                                 current_basin[previous] = basin_above
                             }
-
-                            // Add the size of the basin to the left to that on top
-                            *basin_size.entry(basin_above).or_default() += *basin_size.entry(basin_to_the_left).or_default();
-
-                            basin_above
+                            current_basin[x] = basin_above;
+                            basin_size[basin_above] += basin_size[basin_to_the_left] + 1;
                         }
-                    } else if basin_above == 0 {
-                        // println!(" -> New basin!");
-                        // Create new basin
-                        // 99
-                        // 9X -> new index
-                        next_basin += 1;
-                        next_basin
+                    } else if basin_above.is_no_basin() {
+                        basin_size.push(1);
+                        current_basin[x] = next_basin;
+                        next_basin.increment();
                     } else {
-                        // println!(" -> Above!");
-                        // 91
-                        // 9X -> 1
-                        basin_above
+                        current_basin[x] = basin_above;
+                        basin_size[basin_above] += 1;
                     };
-
-                    current_basin[x] = basin;
-                    *basin_size.entry(basin).or_default() += 1;
-                    currently_in_basin = Some(basin);
-
-                    // println!("(New basin size: {})", basin_size.get(&basin).unwrap());
-                    // println!();
                 }
             }
         }
         basin_above = current_basin;
-        current_basin = [0; LINE_SIZE];
     }
     let size = basin_size.len();
-    basin_size.values()
-        .copied()
-        .collect::<Vec<usize>>()
+    basin_size
         .select_nth_unstable(size.saturating_sub(4))
         .2.iter().copied()
         .product()
@@ -166,4 +163,10 @@ fn test_part_2_example() {
 8767896789
 9899965678";
     assert_eq!(part_2_generic::<11>(input), 1134);
+}
+
+#[test]
+fn test_part_2_input() {
+    let input = include_str!("../input/2021/day9.txt");
+    assert_eq!(part_2(input), 1019494);
 }
