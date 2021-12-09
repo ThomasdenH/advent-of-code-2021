@@ -109,24 +109,21 @@ pub fn part_2(input: &str) -> usize {
         .sum()
 }
 
-fn compute_frequency_table(input: &mut impl Iterator<Item = u8>) -> [u8; 8] {
-    let mut frequency_table = [0; 8];
+fn compute_frequency_table(input: &mut impl Iterator<Item = u8>) -> [u8; 256] {
+    let mut frequency_table = [0; 256];
     for b in input {
-        match b {
-            b'|' => {
-                break;
-            }
-            b'a'..=b'g' => frequency_table[usize::from(b & 0b111)] += 1,
-            _ => {}
+        if b == b'|' {
+            break;
         }
+        frequency_table[usize::from(b)] += 1;
     }
     frequency_table
 }
 
-fn decode_digit(input: &mut impl Iterator<Item = u8>, frequency_table: [u8; 8], radix: usize) -> usize {
+fn decode_digit(input: &mut impl Iterator<Item = u8>, frequency_table: [u8; 256], radix: usize) -> usize {
     let sum = input
     .take_while(|b| (b'a'..=b'g').contains(b))
-    .map(|b| frequency_table[usize::from(b & 0b111)])
+    .map(|b| frequency_table[usize::from(b)])
     .sum();
     match sum {
         17 => 1,
@@ -142,7 +139,7 @@ fn decode_digit(input: &mut impl Iterator<Item = u8>, frequency_table: [u8; 8], 
     }
 }
 
-fn decode_number(input: &mut impl Iterator<Item = u8>, frequency_table: [u8; 8]) -> usize {
+fn decode_number(input: &mut impl Iterator<Item = u8>, frequency_table: [u8; 256]) -> usize {
     (0..4).rev().map(|radix| decode_digit(input, frequency_table, 10_usize.pow(radix))).sum()
 }
 
