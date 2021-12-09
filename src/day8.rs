@@ -122,7 +122,8 @@ fn compute_frequency_table(input: &mut impl Iterator<Item = u8>) -> [u8; 256] {
 
 fn decode_digit(input: &mut impl Iterator<Item = u8>, frequency_table: [u8; 256], radix: usize) -> usize {
     let sum = input
-    .take_while(|b| (b'a'..=b'g').contains(b))
+    // End when hitting ' ' or '\n' 
+    .take_while(|b| *b > (b'a' - 1))
     .map(|b| frequency_table[usize::from(b)])
     .sum();
     match sum {
