@@ -80,58 +80,49 @@ fn part_2_generic<const LINE_SIZE: usize>(input: &str) -> usize {
     // The next basin index to use
     let mut next_basin = MaybeBasin(0);
     let mut basin_above = [MaybeBasin::no_basin(); LINE_SIZE];
-    for line in input.as_bytes().chunks(LINE_SIZE) {
-        let mut current_basin = [MaybeBasin::no_basin(); LINE_SIZE];
-        for (x, b) in line.into_iter().enumerate() {
-            match b {
-                b'9' | b'\n' => {
-                    // No basin
-                },
-                _ => {
-                    /*for i in basin_above.iter() {
-                        print!("{:?}", i);
-                    }
-                    println!();
-                    for i in current_basin.iter() {
-                        print!("{:?}", i);
-                    }
-                    println!();
-                    print!("{}", std::str::from_utf8(line).unwrap());*/
-                    let basin_above = basin_above[x];
-                    let basin_to_the_left = if x >= 1 { current_basin[x - 1] } else { MaybeBasin::no_basin() };
-                    if basin_to_the_left.is_a_basin() {
-                        if basin_above.is_no_basin() || basin_above == basin_to_the_left {
-                            current_basin[x] = basin_to_the_left;
-                            basin_size[basin_to_the_left] += 1;
-                        } else {
-                            for previous in (0..x).rev() {
-                                if current_basin[previous] != basin_to_the_left {
-                                    break;
-                                }
-                                current_basin[previous] = basin_above
-                            }
-                            current_basin[x] = basin_above;
-                            basin_size[basin_above] += basin_size[basin_to_the_left] + 1;
-                        }
-                    } else if basin_above.is_no_basin() {
-                        basin_size.push(1);
-                        current_basin[x] = next_basin;
-                        next_basin.increment();
+    let mut current_basin = [MaybeBasin::no_basin(); LINE_SIZE];
+    for (index, b) in input.bytes().enumerate() {
+        let x = index % LINE_SIZE;
+        match b {
+            b'9' => {},
+            b'\n' => {
+                // No basin
+                basin_above = current_basin;
+                current_basin = [MaybeBasin::no_basin(); LINE_SIZE];
+            },
+            _ => {
+                let basin_above = basin_above[x];
+                let basin_to_the_left = if x >= 1 { current_basin[x - 1] } else { MaybeBasin::no_basin() };
+                if basin_to_the_left.is_a_basin() {
+                    if basin_above.is_no_basin() || basin_above == basin_to_the_left {
+                        current_basin[x] = basin_to_the_left;
+                        basin_size[basin_to_the_left] += 1;
                     } else {
+                        for previous in (0..x).rev() {
+                            if current_basin[previous] != basin_to_the_left {
+                                break;
+                            }
+                            current_basin[previous] = basin_above
+                        }
                         current_basin[x] = basin_above;
-                        basin_size[basin_above] += 1;
-                    };
-                }
+                        basin_size[basin_above] += basin_size[basin_to_the_left] + 1;
+                    }
+                } else if basin_above.is_no_basin() {
+                    basin_size.push(1);
+                    current_basin[x] = next_basin;
+                    next_basin.increment();
+                } else {
+                    current_basin[x] = basin_above;
+                    basin_size[basin_above] += 1;
+                };
             }
         }
-        basin_above = current_basin;
     }
     let size = basin_size.len();
     basin_size
         .select_nth_unstable(size.saturating_sub(4))
         .2.iter().copied()
         .product()
-
 }
 
 pub fn part_2(input: &str) -> usize {
