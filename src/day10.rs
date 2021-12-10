@@ -62,25 +62,27 @@ fn matches(a: u8, b: u8) -> bool {
     a ^ b < 0b111
 }
 
-fn parse<'a>(stack: &'a mut Vec<u8>, input: &mut impl Iterator<Item = u8>) -> ParseResult<'a> {
+fn parse<'a>(stack: &'a mut Vec<u8>, input: &mut &[u8]) -> ParseResult<'a> {
     debug_assert!(stack.is_empty());
     loop {
-        match input.next().unwrap_or(b'\n') {
-            b'\n' => if stack.is_empty() {
-                return ParseResult::Valid
+        let first = if let Some((first, remainder)) = input.split_first() {
+            *input = remainder;
+            *first
+        } else {
+            b'\n'
+        };
+        match first {
+            b'\n' => return if stack.is_empty() {
+                ParseResult::Valid
             } else {
-                return ParseResult::Incomplete { stack }
+                ParseResult::Incomplete { stack }
             },
             c if is_opening(c) => stack.push(c),
             found => {
                 if let Some(expected) = stack.pop() {
                     if !matches(expected, found) {
                         // Flush remainder of line
-                        for n in input {
-                            if n == b'\n' {
-                                break;
-                            }
-                        }
+                        *input = memchr::memchr(b'\n', input).map(|pos| &input[pos..]).unwrap_or(&[]);
                         return ParseResult::Corrupted { expected, found };
                     }
                 }
@@ -90,11 +92,11 @@ fn parse<'a>(stack: &'a mut Vec<u8>, input: &mut impl Iterator<Item = u8>) -> Pa
 }
 
 pub fn part_1(input: &str) -> usize {
-    let mut iter = input.bytes();
+    let mut bytes = input.as_bytes();
     let mut stack = Vec::new();
     let mut acc = 0;
-    while iter.len() > 0 {
-        if let ParseResult::Corrupted { found, .. } = parse(&mut stack, &mut iter) {
+    while !bytes.is_empty() {
+        if let ParseResult::Corrupted { found, .. } = parse(&mut stack, &mut bytes) {
             acc += match found {
                 b')' => 3,
                 b']' => 57,
@@ -112,11 +114,11 @@ pub fn part_1(input: &str) -> usize {
 
 
 pub fn part_2(input: &str) -> usize {
-    let mut iter = input.bytes();
+    let mut bytes = input.as_bytes();
     let mut stack = Vec::new();
     let mut acc = Vec::new();
-    while iter.len() > 0 {
-        if let ParseResult::Incomplete { stack } = parse(&mut stack, &mut iter) {
+    while !bytes.is_empty() {
+        if let ParseResult::Incomplete { stack } = parse(&mut stack, &mut bytes) {
             acc.push(stack.drain(..)
                 .map(|b| match b {
                     b'(' => 1,
