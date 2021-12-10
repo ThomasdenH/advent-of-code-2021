@@ -66,8 +66,11 @@ fn parse<'a>(stack: &'a mut Vec<u8>, input: &mut impl Iterator<Item = u8>) -> Pa
     debug_assert!(stack.is_empty());
     loop {
         match input.next().unwrap_or(b'\n') {
-            b'\n' if stack.is_empty() => return ParseResult::Valid,
-            b'\n' => return ParseResult::Incomplete { stack },
+            b'\n' => if stack.is_empty() {
+                return ParseResult::Valid
+            } else {
+                return ParseResult::Incomplete { stack }
+            },
             c if is_opening(c) => stack.push(c),
             found => {
                 if let Some(expected) = stack.pop() {
