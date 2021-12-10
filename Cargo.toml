@@ -7,13 +7,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-aoc-main = { version = "0.3", features = ["bench"] }
+aoc-main = { path= "../aoc", features = ["bench"] }
 indoc = "1"
 thiserror = "1"
 anyhow = "1"
 itertools = "0.10"
 nom = "7.1"
 memchr = "2"
+arrayvec = "0.7"
 
 [profile.release]
 lto = true

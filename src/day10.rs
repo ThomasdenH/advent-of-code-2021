@@ -1,29 +1,20 @@
 use std::fmt;
 
+use arrayvec::ArrayVec;
+
+const STACK_SIZE: usize = 120;
+
 #[derive(Eq, PartialEq)]
 enum ParseResult<'a> {
     Valid,
     Incomplete {
-        stack: &'a mut Vec<u8>,
+        stack: &'a mut ArrayVec<u8, STACK_SIZE>,
     },
     /// Chunk closes with the wrong character
     Corrupted {
         expected: u8,
         found: u8,
     },
-}
-
-#[derive(PartialEq, Eq, Copy, Clone)]
-struct Stack {
-    stack: [u8; 120],
-    pos: usize,
-}
-
-impl Stack {
-    fn push(&mut self, val: u8) {
-        self.stack[self.pos] = val;
-        self.pos += 1;
-    }
 }
 
 impl ParseResult<'_> {
@@ -85,10 +76,10 @@ fn is_opening(b: u8) -> bool {
 
 fn matches(a: u8, b: u8) -> bool {
     debug_assert!(is_opening(a) && !is_opening(b));
-    a ^ b < 0b111
+    (a ^ b) < 0b111
 }
 
-fn parse<'a>(stack: &'a mut Vec<u8>, input: &mut &[u8]) -> ParseResult<'a> {
+fn parse<'a>(stack: &'a mut ArrayVec<u8, STACK_SIZE>, input: &mut &[u8]) -> ParseResult<'a> {
     debug_assert!(stack.is_empty());
     loop {
         let first = if let Some((first, remainder)) = input.split_first() {
@@ -123,7 +114,7 @@ fn parse<'a>(stack: &'a mut Vec<u8>, input: &mut &[u8]) -> ParseResult<'a> {
 
 pub fn part_1(input: &str) -> usize {
     let mut bytes = input.as_bytes();
-    let mut stack = Vec::new();
+    let mut stack = ArrayVec::new();
     let mut acc = 0;
     while !bytes.is_empty() {
         if let ParseResult::Corrupted { found, .. } = parse(&mut stack, &mut bytes) {
@@ -144,8 +135,8 @@ pub fn part_1(input: &str) -> usize {
 
 pub fn part_2(input: &str) -> usize {
     let mut bytes = input.as_bytes();
-    let mut stack = Vec::new();
-    let mut acc = Vec::new();
+    let mut stack = ArrayVec::new();
+    let mut acc = ArrayVec::<usize, STACK_SIZE>::new();
     while !bytes.is_empty() {
         if let ParseResult::Incomplete { stack } = parse(&mut stack, &mut bytes) {
             acc.push(
