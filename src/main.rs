@@ -14,6 +14,7 @@ mod day6;
 mod day7;
 mod day8;
 mod day9;
+mod day10;
 
 aoc_main::main! {
     year 2021;
@@ -26,4 +27,5 @@ aoc_main::main! {
     day7 => part_1, part_2_incrementing_mu, part_2_mean;
     day8 => part_1, part_2, part_2_frequency_table;
     day9 => part_1, part_2;
+    day10 => part_1, part_2;
 }
