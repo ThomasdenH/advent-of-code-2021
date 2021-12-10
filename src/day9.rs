@@ -1,6 +1,7 @@
 use std::{
-    fmt,
-    ops::{Index, IndexMut}, iter, cmp::Ordering,
+    cmp::Ordering,
+    fmt, iter,
+    ops::{Index, IndexMut},
 };
 
 use itertools::Itertools;
@@ -16,10 +17,13 @@ pub fn part_1_generic<const LINE_SIZE: usize>(input: &str) -> usize {
         .tuple_windows()
         .map(|((cmp1, val1), (cmp2, _))| (cmp1, cmp2, val1))
         .enumerate()
-        .filter(|(index, (cmp1, cmp2, value))| *cmp1 == Ordering::Greater
-            && *cmp2 == Ordering::Less
-            && (*index < LINE_SIZE || *value < b'0' ^ input.as_bytes()[*index - LINE_SIZE])
-            && (*index >= input.len() - LINE_SIZE || *value < b'0' ^ input.as_bytes()[*index + LINE_SIZE]))
+        .filter(|(index, (cmp1, cmp2, value))| {
+            *cmp1 == Ordering::Greater
+                && *cmp2 == Ordering::Less
+                && (*index < LINE_SIZE || *value < b'0' ^ input.as_bytes()[*index - LINE_SIZE])
+                && (*index >= input.len() - LINE_SIZE
+                    || *value < b'0' ^ input.as_bytes()[*index + LINE_SIZE])
+        })
         .map(|(_index, (_cmp1, _cmp2, value))| usize::from(value + 1))
         .sum()
 }
