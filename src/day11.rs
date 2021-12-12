@@ -168,3 +168,15 @@ fn test_part_1_small_example() {
 45654"
     );
 }
+
+#[test]
+fn test_part_1_input() {
+    let input = include_str!("../input/2021/day11.txt");
+    assert_eq!(part_1(input), 1617);
+}
+
+#[test]
+fn test_part_2_input() {
+    let input = include_str!("../input/2021/day11.txt");
+    assert_eq!(part_2(input), 258);
+}

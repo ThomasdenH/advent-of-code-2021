@@ -1,71 +1,102 @@
-use std::collections::HashMap;
 use arrayvec::ArrayVec;
 
-const MAX_NODES: usize = 20;
-const MAX_CONNECTIONS_PER_NODE: usize = 20;
+const MAX_NODES: usize = 10;
+const MAX_CONNECTIONS_PER_NODE: usize = 10;
 
 struct Graph<'a> {
-    nodes: HashMap<&'a str, Node<'a>>,
-    visit_rule: VisitRule
+    nodes: ArrayVec<(&'a [u8], Node<'a>), MAX_NODES>,
+    visit_rule: VisitRule,
 }
 
 #[derive(Eq, PartialEq, Copy, Clone)]
 enum VisitRule {
     Single,
-    DoubleOnce
+    DoubleOnce,
 }
 
 #[derive(Debug)]
 struct Node<'a> {
-    neighbours: ArrayVec<&'a str, MAX_CONNECTIONS_PER_NODE>,
+    neighbours: ArrayVec<&'a [u8], MAX_CONNECTIONS_PER_NODE>,
     visited: bool,
-    is_small: bool
+    is_small: bool,
 }
 
 impl<'a> Graph<'a> {
-    fn add_connection_one_way(&mut self, name: &'a str, name_2: &'a str) {
-        if name != "end" && name_2 != "start" {
-            let is_small = name.chars().all(|c| c.is_ascii_lowercase());
-            self
-                .nodes
-                .entry(name)
-                .or_insert_with(|| Node {
-                    neighbours: ArrayVec::new(),
-                    visited: false,
-                    is_small
-                })
-                .neighbours
-                .push(name_2);
+    fn add_connection_one_way(&mut self, name: &'a [u8], name_2: &'a [u8]) {
+        if name != b"end" && name_2 != b"start" {
+            let is_small = name.iter().all(|c| c.is_ascii_lowercase());
+            if let Some(existing_node) = self.get_node_mut(name) {
+                existing_node.neighbours.push(name_2);
+            } else {
+                let mut neighbours = ArrayVec::new();
+                neighbours.push(name_2);
+                self.nodes.push((
+                    name,
+                    Node {
+                        neighbours,
+                        visited: false,
+                        is_small,
+                    },
+                ));
+            }
         }
+    }
+
+    fn handle_line(&mut self, line: &'a [u8]) {
+        let dash_pos = memchr::memchr(b'-', line).unwrap();
+        let node_a_name = &line[..dash_pos];
+        let node_b_name = &line[(dash_pos + 1)..];
+        self.add_connection_one_way(node_a_name, node_b_name);
+        self.add_connection_one_way(node_b_name, node_a_name);
     }
 
     fn new(input: &'a str, visit_rule: VisitRule) -> Self {
         let mut graph = Graph {
-            nodes: HashMap::new(),
-            visit_rule
+            nodes: ArrayVec::new(),
+            visit_rule,
         };
-        for line in input.lines() {
-            let mut split = line.split('-');
-            let node_a_name = split.next().unwrap();
-            let node_b_name = split.next().unwrap().trim_end();
-            graph.add_connection_one_way(node_a_name, node_b_name);
-            graph.add_connection_one_way(node_b_name, node_a_name);
+        let mut input = input.as_bytes();
+        while let Some(line_end_pos) = memchr::memchr(b'\n', input) {
+            let line = &input[..line_end_pos];
+            input = &input[line_end_pos + 1..];
+            graph.handle_line(line);
         }
+        graph.handle_line(input);
         graph
     }
 
-    fn is_big_or_unvisited(&self, node: &str) -> bool {
-        let node = self.nodes.get(node).unwrap();
+    fn get_node(&self, s: &[u8]) -> Option<&Node<'a>> {
+        self.nodes.iter().find(|(name, _)| *name == s).map(|o| &o.1)
+    }
+
+    fn get_node_mut(&mut self, s: &[u8]) -> Option<&mut Node<'a>> {
+        self.nodes
+            .iter_mut()
+            .find(|(name, _)| *name == s)
+            .map(|o| &mut o.1)
+    }
+
+    fn is_big_or_unvisited(&self, node: &[u8]) -> bool {
+        let node = self.get_node(node).unwrap();
         !node.is_small || !node.visited
     }
 
-    fn paths_to_end(&mut self, node_str: &'a str, paths: usize, can_still_visit_twice: &mut bool) -> usize {
-        let node = self.nodes.get_mut(node_str).unwrap();
+    fn paths_to_end(
+        &mut self,
+        node_str: &'a [u8],
+        can_still_visit_twice: &mut bool,
+    ) -> usize {
+        let node = self
+            .nodes
+            .iter_mut()
+            .find(|(name, _)| *name == node_str)
+            .map(|o| &mut o.1)
+            .unwrap();
         let used_extra_visit = node.is_small && node.visited;
         if used_extra_visit {
             debug_assert!(self.visit_rule == VisitRule::DoubleOnce);
             debug_assert!(node.visited);
-            debug_assert!(!node.is_small || *can_still_visit_twice == true);
+            debug_assert!(!node.is_small || *can_still_visit_twice);
             *can_still_visit_twice = false;
         } else {
             debug_assert!(!node.is_small || !node.visited);
@@ -76,10 +107,12 @@ impl<'a> Graph<'a> {
             .clone()
             .iter()
             .filter_map(|other_node| {
-                if *other_node == "end" {
+                if *other_node == b"end" {
                     Some(1)
-                } else if self.is_big_or_unvisited(other_node) || (self.visit_rule == VisitRule::DoubleOnce && *can_still_visit_twice) {
-                    Some(self.paths_to_end(other_node, paths, can_still_visit_twice))
+                } else if self.is_big_or_unvisited(other_node)
+                    || (self.visit_rule == VisitRule::DoubleOnce && *can_still_visit_twice)
+                {
+                    Some(self.paths_to_end(other_node, can_still_visit_twice))
                 } else {
                     None
                 }
@@ -88,14 +121,14 @@ impl<'a> Graph<'a> {
         if used_extra_visit {
             *can_still_visit_twice = true;
         } else {
-            self.nodes.get_mut(node_str).unwrap().visited = false;
+            self.get_node_mut(node_str).unwrap().visited = false;
         }
         paths
     }
 
     fn paths_from_start_to_end(&mut self) -> usize {
-        let mut can_still_visit_twice = if self.visit_rule == VisitRule::DoubleOnce { true } else { false };
-        self.paths_to_end("start", 1, &mut can_still_visit_twice)
+        let mut can_still_visit_twice = self.visit_rule == VisitRule::DoubleOnce;
+        self.paths_to_end(b"start", &mut can_still_visit_twice)
     }
 }
 
@@ -169,8 +202,6 @@ b-end";
     assert_eq!(part_2(input), 36);
 }
 
-
-
 #[test]
 fn test_part_2_example_2() {
     let input = "dc-end
@@ -207,4 +238,16 @@ zg-he
 pj-fs
 start-RW";
     assert_eq!(part_2(input), 3509);
+}
+
+#[test]
+fn test_part_1_input() {
+    let input = include_str!("../input/2021/day12.txt");
+    assert_eq!(part_1(input), 5157);
+}
+
+#[test]
+fn test_part_2_input() {
+    let input = include_str!("../input/2021/day12.txt");
+    assert_eq!(part_2(input), 144309);
 }
