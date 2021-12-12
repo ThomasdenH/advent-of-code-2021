@@ -1,4 +1,8 @@
 use std::collections::HashMap;
+use arrayvec::ArrayVec;
+
+const MAX_NODES: usize = 20;
+const MAX_CONNECTIONS_PER_NODE: usize = 20;
 
 struct Graph<'a> {
     nodes: HashMap<&'a str, Node<'a>>,
@@ -11,25 +15,28 @@ enum VisitRule {
     DoubleOnce
 }
 
+#[derive(Debug)]
 struct Node<'a> {
-    neighbours: Vec<&'a str>,
+    neighbours: ArrayVec<&'a str, MAX_CONNECTIONS_PER_NODE>,
     visited: bool,
     is_small: bool
 }
 
 impl<'a> Graph<'a> {
     fn add_connection_one_way(&mut self, name: &'a str, name_2: &'a str) {
-        let is_small = name.chars().all(|c| c.is_ascii_lowercase());
-        self
-            .nodes
-            .entry(name)
-            .or_insert_with(|| Node {
-                neighbours: Vec::new(),
-                visited: false,
-                is_small
-            })
-            .neighbours
-            .push(name_2);
+        if name != "end" && name_2 != "start" {
+            let is_small = name.chars().all(|c| c.is_ascii_lowercase());
+            self
+                .nodes
+                .entry(name)
+                .or_insert_with(|| Node {
+                    neighbours: ArrayVec::new(),
+                    visited: false,
+                    is_small
+                })
+                .neighbours
+                .push(name_2);
+        }
     }
 
     fn new(input: &'a str, visit_rule: VisitRule) -> Self {
@@ -42,9 +49,7 @@ impl<'a> Graph<'a> {
             let node_a_name = split.next().unwrap();
             let node_b_name = split.next().unwrap().trim_end();
             graph.add_connection_one_way(node_a_name, node_b_name);
-            if node_b_name != "end" && node_a_name != "start" {
-                graph.add_connection_one_way(node_b_name, node_a_name);
-            }
+            graph.add_connection_one_way(node_b_name, node_a_name);
         }
         graph
     }
