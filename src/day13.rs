@@ -1,9 +1,9 @@
 use std::fmt;
 
-struct Points(Vec<(usize, usize)>);
+struct Points(Vec<(u16, u16)>);
 
 impl Points {
-    fn fold(&mut self, fold: (u8, usize)) {
+    fn fold(&mut self, fold: (u8, u16)) {
         let mut max = self.0.len();
         let mut i = 0;
         while i < max {
@@ -44,22 +44,16 @@ impl fmt::Display for Points {
     }
 }
 
-fn fold_point((x, y): (usize, usize), (axis, along): (u8, usize)) -> (usize, usize) {
+fn fold_point((x, y): (u16, u16), (axis, along): (u8, u16)) -> (u16, u16) {
     if axis == b'x' {
-        if x > along {
-            (2 * along - x, y)
-        } else {
-            (x, y)
-        }
-    } else if y > along {
-        (x, 2 * along - y)
+        (along - along.abs_diff(x), y)
     } else {
-        (x, y)
+        (x, along - along.abs_diff(y))
     }
 }
 
-fn parse(input: &str) -> (Points, impl Iterator<Item = (u8, usize)> + '_) {
-    let mut points: Vec<(usize, usize)> = Vec::new();
+fn parse(input: &str) -> (Points, impl Iterator<Item = (u8, u16)> + '_) {
+    let mut points: Vec<(u16, u16)> = Vec::new();
     let mut parts = input.split("\n\n");
     let point = parts.next().unwrap();
     let instructions = parts.next().unwrap();
@@ -74,7 +68,7 @@ fn parse(input: &str) -> (Points, impl Iterator<Item = (u8, usize)> + '_) {
     let folds = instructions.lines().map(|line| {
         let coord = &line["fold along ".len()..];
         let axis = coord.as_bytes()[0];
-        let pos: usize = coord[2..].parse().unwrap();
+        let pos: u16 = coord[2..].parse().unwrap();
         (axis, pos)
     });
 
