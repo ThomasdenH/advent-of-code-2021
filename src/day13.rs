@@ -1,29 +1,12 @@
-use std::fmt;
+use std::{collections::HashSet, fmt, iter};
 
-struct Points(Vec<(u16, u16)>);
+struct Points(HashSet<(u16, u16)>);
 
-impl Points {
-    fn fold(&mut self, fold: (u8, u16)) {
-        let mut max = self.0.len();
-        let mut i = 0;
-        while i < max {
-            let p = self.0[i];
-            let folded = fold_point(p, fold);
-            if folded != p {
-                if self.0.contains(&folded) {
-                    // Just remove the current point
-                    self.0.remove(i);
-                    max -= 1;
-                } else {
-                    // Else replace the current point
-                    self.0[i] = folded;
-                    i += 1;
-                }
-            } else {
-                i += 1;
-            }
-        }
-    }
+fn folded_points(
+    points: impl Iterator<Item = (u16, u16)>,
+    folds: impl Iterator<Item = (u8, u16)> + Clone,
+) -> Points {
+    Points(points.map(|p| folds.clone().fold(p, fold_point)).collect())
 }
 
 impl fmt::Display for Points {
@@ -52,18 +35,22 @@ fn fold_point((x, y): (u16, u16), (axis, along): (u8, u16)) -> (u16, u16) {
     }
 }
 
-fn parse(input: &str) -> (Points, impl Iterator<Item = (u8, u16)> + '_) {
-    let mut points: Vec<(u16, u16)> = Vec::new();
+fn parse(
+    input: &str,
+) -> (
+    impl Iterator<Item = (u16, u16)> + '_,
+    impl Iterator<Item = (u8, u16)> + '_,
+) {
     let mut parts = input.split("\n\n");
     let point = parts.next().unwrap();
     let instructions = parts.next().unwrap();
 
-    for line in point.lines() {
-        let mut coords = line.split(',');
+    let points = point.lines().map(|coords| {
+        let mut coords = coords.trim_end().split(',');
         let x = coords.next().unwrap().parse().unwrap();
         let y = coords.next().unwrap().parse().unwrap();
-        points.push((x, y));
-    }
+        (x, y)
+    });
 
     let folds = instructions.lines().map(|line| {
         let coord = &line["fold along ".len()..];
@@ -72,20 +59,20 @@ fn parse(input: &str) -> (Points, impl Iterator<Item = (u8, u16)> + '_) {
         (axis, pos)
     });
 
-    (Points(points), folds)
+    (points, folds)
 }
 
 pub fn part_1(input: &str) -> usize {
-    let (mut points, mut folds) = parse(input);
-    points.fold(folds.next().unwrap());
-    points.0.len()
+    let (points, mut folds) = parse(input);
+    folded_points(points, iter::once(folds.next().unwrap()))
+        .0
+        .len()
 }
 
 pub fn part_2(input: &str) -> String {
-    let (mut points, folds) = parse(input);
-    for fold in folds {
-        points.fold(fold);
-    }
+    let (points, folds) = parse(input);
+    let folds: Vec<_> = folds.collect();
+    let points = folded_points(points, folds.iter().copied());
     format!("{}", points)
 }
 
