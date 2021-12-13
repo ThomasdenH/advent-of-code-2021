@@ -81,11 +81,7 @@ impl<'a> Graph<'a> {
         !node.is_small || !node.visited
     }
 
-    fn paths_to_end(
-        &mut self,
-        node_str: &'a [u8],
-        can_still_visit_twice: &mut bool,
-    ) -> usize {
+    fn paths_to_end(&mut self, node_str: &'a [u8], can_still_visit_twice: &mut bool) -> usize {
         let node = self
             .nodes
             .iter_mut()
