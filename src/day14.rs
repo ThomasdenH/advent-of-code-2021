@@ -22,22 +22,11 @@ fn pair_to_index(pair: &[u8]) -> usize {
     (usize::from(pair[0]) * 26 + usize::from(pair[1])) - (usize::from(b'A') * 26 + usize::from(b'A'))
 }
 
-fn display_frequencies(freqs: [usize; 26 * 26]) {
-    for letter in b'A'..=b'Z' {
-        for other_letter in b'A'..=b'Z' {
-            let index = pair_to_index(&[letter, other_letter]);
-            if freqs[index] > 0 {
-                println!("{}{}: {}", char::from(letter), char::from(other_letter), freqs[index]);
-            }
-        }
-    }
-}
-
 fn solve(input: &str, rounds: usize) -> usize {
     let mut frequencies = [0usize; MAX_INDEX];
     let (polymer, replacings) = parse(input);
     let first_polymer_letter = polymer[0];
-    for (pair_left, pair_right) in polymer.into_iter().tuple_windows() {
+    for (pair_left, pair_right) in polymer.iter().tuple_windows() {
         frequencies[pair_to_index(&[*pair_left, *pair_right])] += 1;
     }
     let replacings: Vec<_> = replacings.map(|(i, o)| (pair_to_index(i), pair_to_index(&[i[0], o]), pair_to_index(&[o, i[1]]))).collect();

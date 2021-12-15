@@ -46,7 +46,7 @@ impl<const SIZE: usize, const DUPLICATED: usize> Index<SIZE, DUPLICATED> {
         (self.x / SIZE) + (self.y / SIZE)
     }
 
-    fn neighbour_array_indices(&self, len: usize) -> impl Iterator<Item = Index<SIZE, DUPLICATED>> {
+    fn neighbour_array_indices(&self) -> impl Iterator<Item = Index<SIZE, DUPLICATED>> {
         // Left
         (if self.x > 0 {
             Some(Index { x: self.x - 1, y: self.y })
@@ -102,12 +102,12 @@ pub fn parts_generic<const SIZE: usize, const DUPLICATED: usize>(input: &str) ->
     let end_index = Index::from_x_y(DUPLICATED * SIZE - 1, DUPLICATED * SIZE - 1);
     open_set.push(BinaryHeapItem { index: start, cost_estimate: start.cost_guess() });
     g_score.insert(start, 0);
-    while let Some(BinaryHeapItem { index , cost_estimate }) = open_set.pop() {
+    while let Some(BinaryHeapItem { index , .. }) = open_set.pop() {
         let current_score = *g_score.get(&index).unwrap();
         if index == end_index {
             return current_score;
         }
-        for neighbour in index.neighbour_array_indices(input.len()) {
+        for neighbour in index.neighbour_array_indices() {
             let tentative_score = current_score + grid.cost_at(neighbour);
             if tentative_score < *g_score.get(&neighbour).unwrap_or(&usize::MAX) {
                 g_score.insert(neighbour, tentative_score);
