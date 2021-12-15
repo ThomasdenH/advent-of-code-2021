@@ -6,20 +6,20 @@ use itertools::Itertools;
 fn parse(input: &str) -> (&[u8], impl Iterator<Item = (&[u8], u8)>) {
     let mut split = input.split("\n\n");
     let polymer = split.next().unwrap().as_bytes();
-    let iter = split.next().unwrap().lines()
-        .map(|l| {
-            let l = l.as_bytes();
-            let i = &l[..2];
-            let o = l[6];
-            (i, o)
-        });
+    let iter = split.next().unwrap().lines().map(|l| {
+        let l = l.as_bytes();
+        let i = &l[..2];
+        let o = l[6];
+        (i, o)
+    });
     (polymer, iter)
 }
 
 const MAX_INDEX: usize = 26 * 26;
 
 fn pair_to_index(pair: &[u8]) -> usize {
-    (usize::from(pair[0]) * 26 + usize::from(pair[1])) - (usize::from(b'A') * 26 + usize::from(b'A'))
+    (usize::from(pair[0]) * 26 + usize::from(pair[1]))
+        - (usize::from(b'A') * 26 + usize::from(b'A'))
 }
 
 fn solve(input: &str, rounds: usize) -> usize {
@@ -29,7 +29,15 @@ fn solve(input: &str, rounds: usize) -> usize {
     for (pair_left, pair_right) in polymer.iter().tuple_windows() {
         frequencies[pair_to_index(&[*pair_left, *pair_right])] += 1;
     }
-    let replacings: Vec<_> = replacings.map(|(i, o)| (pair_to_index(i), pair_to_index(&[i[0], o]), pair_to_index(&[o, i[1]]))).collect();
+    let replacings: Vec<_> = replacings
+        .map(|(i, o)| {
+            (
+                pair_to_index(i),
+                pair_to_index(&[i[0], o]),
+                pair_to_index(&[o, i[1]]),
+            )
+        })
+        .collect();
     for _ in 0..rounds {
         let mut new_frequencies = [0; MAX_INDEX];
         for (from, to_1, to_2) in replacings.iter().copied() {
@@ -44,10 +52,16 @@ fn solve(input: &str, rounds: usize) -> usize {
     actual_letter_frequencies[usize::from(first_polymer_letter - b'A')] = 1;
     for letter in b'A'..=b'Z' {
         for other_letter in b'A'..=b'Z' {
-            actual_letter_frequencies[usize::from(other_letter - b'A')] += frequencies[pair_to_index(&[letter, other_letter])];
+            actual_letter_frequencies[usize::from(other_letter - b'A')] +=
+                frequencies[pair_to_index(&[letter, other_letter])];
         }
     }
-    actual_letter_frequencies.iter().max().unwrap() - actual_letter_frequencies.iter().filter(|l| **l != 0).min().unwrap()
+    actual_letter_frequencies.iter().max().unwrap()
+        - actual_letter_frequencies
+            .iter()
+            .filter(|l| **l != 0)
+            .min()
+            .unwrap()
 }
 
 pub fn part_1(input: &str) -> usize {

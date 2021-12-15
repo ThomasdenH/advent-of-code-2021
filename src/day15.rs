@@ -1,4 +1,7 @@
-use std::{collections::{BinaryHeap, HashMap}, cmp::Ordering};
+use std::{
+    cmp::Ordering,
+    collections::{BinaryHeap, HashMap},
+};
 
 struct Grid<'a, const SIZE: usize, const DUPLICATED: usize>(&'a [u8]);
 
@@ -17,20 +20,18 @@ impl<'a, const SIZE: usize, const DUPLICATED: usize> Grid<'a, SIZE, DUPLICATED> 
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Hash)]
 struct Index<const SIZE: usize, const DUPLICATED: usize> {
     x: usize,
-    y: usize
+    y: usize,
 }
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Hash)]
 struct BinaryHeapItem<const SIZE: usize, const DUPLICATED: usize> {
     index: Index<SIZE, DUPLICATED>,
-    cost_estimate: usize
+    cost_estimate: usize,
 }
 
 impl<const SIZE: usize, const DUPLICATED: usize> Index<SIZE, DUPLICATED> {
     fn from_x_y(x: usize, y: usize) -> Self {
-        Index {
-            x, y
-        }
+        Index { x, y }
     }
 
     /// Guess the cost from this point to the goal
@@ -49,28 +50,50 @@ impl<const SIZE: usize, const DUPLICATED: usize> Index<SIZE, DUPLICATED> {
     fn neighbour_array_indices(&self) -> impl Iterator<Item = Index<SIZE, DUPLICATED>> {
         // Left
         (if self.x > 0 {
-            Some(Index { x: self.x - 1, y: self.y })
+            Some(Index {
+                x: self.x - 1,
+                y: self.y,
+            })
         } else {
             None
-        }).into_iter()
+        })
+        .into_iter()
         // Right
-        .chain(if self.x + 1 < SIZE * DUPLICATED {
-            Some(Index { x: self.x + 1, y: self.y })
-        } else {
-            None
-        }.into_iter())
+        .chain(
+            if self.x + 1 < SIZE * DUPLICATED {
+                Some(Index {
+                    x: self.x + 1,
+                    y: self.y,
+                })
+            } else {
+                None
+            }
+            .into_iter(),
+        )
         // Up
-        .chain(if self.y > 0 {
-            Some(Index { x: self.x, y: self.y - 1 })
-        } else {
-            None
-        }.into_iter())
+        .chain(
+            if self.y > 0 {
+                Some(Index {
+                    x: self.x,
+                    y: self.y - 1,
+                })
+            } else {
+                None
+            }
+            .into_iter(),
+        )
         // Down
-        .chain(if self.y + 1 < SIZE * DUPLICATED {
-            Some(Index { x: self.x, y: self.y + 1 })
-        } else {
-            None
-        }.into_iter())
+        .chain(
+            if self.y + 1 < SIZE * DUPLICATED {
+                Some(Index {
+                    x: self.x,
+                    y: self.y + 1,
+                })
+            } else {
+                None
+            }
+            .into_iter(),
+        )
     }
 }
 
@@ -100,9 +123,12 @@ pub fn parts_generic<const SIZE: usize, const DUPLICATED: usize>(input: &str) ->
     let mut g_score = HashMap::new();
     let start: Index<SIZE, DUPLICATED> = Index::from_x_y(0, 0);
     let end_index = Index::from_x_y(DUPLICATED * SIZE - 1, DUPLICATED * SIZE - 1);
-    open_set.push(BinaryHeapItem { index: start, cost_estimate: start.cost_guess() });
+    open_set.push(BinaryHeapItem {
+        index: start,
+        cost_estimate: start.cost_guess(),
+    });
     g_score.insert(start, 0);
-    while let Some(BinaryHeapItem { index , .. }) = open_set.pop() {
+    while let Some(BinaryHeapItem { index, .. }) = open_set.pop() {
         let current_score = *g_score.get(&index).unwrap();
         if index == end_index {
             return current_score;
@@ -112,7 +138,10 @@ pub fn parts_generic<const SIZE: usize, const DUPLICATED: usize>(input: &str) ->
             if tentative_score < *g_score.get(&neighbour).unwrap_or(&usize::MAX) {
                 g_score.insert(neighbour, tentative_score);
                 let cost_estimate = tentative_score + neighbour.cost_guess();
-                open_set.push(BinaryHeapItem { index: neighbour, cost_estimate});
+                open_set.push(BinaryHeapItem {
+                    index: neighbour,
+                    cost_estimate,
+                });
             }
         }
     }
