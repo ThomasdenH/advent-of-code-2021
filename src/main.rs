@@ -37,5 +37,5 @@ aoc_main::main! {
     day12 => part_1, part_2;
     day13 => part_1, part_2;
     day14 => part_1, part_2;
-    day15 => part_1;
+    day15 => part_1, part_2;
 }

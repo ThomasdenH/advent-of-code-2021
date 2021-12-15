@@ -1,109 +1,118 @@
 use std::{collections::{BinaryHeap, HashMap}, cmp::Ordering};
 
-struct Grid<'a, const LINE_SIZE: usize>(&'a [u8]);
+struct Grid<'a, const SIZE: usize, const DUPLICATED: usize>(&'a [u8]);
 
-impl<'a, const LINE_SIZE: usize> Grid<'a, LINE_SIZE> {
+impl<'a, const SIZE: usize, const DUPLICATED: usize> Grid<'a, SIZE, DUPLICATED> {
     fn new(input: &'a str) -> Self {
-        debug_assert!(input.as_bytes()[LINE_SIZE] == b'\n');
+        debug_assert_eq!(input.as_bytes()[SIZE], b'\n');
+        debug_assert_eq!(input.len(), (SIZE + 1) * SIZE - 1);
         Grid(input.as_bytes())
     }
 
-    fn cost(&self, index: usize) -> usize {
-        usize::from(self.0[index] & 0b1111)
+    fn cost_at(&self, index: Index<SIZE, DUPLICATED>) -> usize {
+        (usize::from(self.0[index.array_index()] & 0b1111) + index.block_bonus() - 1) % 9 + 1
     }
 }
 
-#[derive(Eq, PartialEq, Clone, Copy, Debug)]
-struct Index<const LINE_SIZE: usize> {
+#[derive(Eq, PartialEq, Clone, Copy, Debug, Hash)]
+struct Index<const SIZE: usize, const DUPLICATED: usize> {
     x: usize,
     y: usize
 }
 
-impl<const LINE_SIZE: usize> Index<LINE_SIZE> {
+#[derive(Eq, PartialEq, Clone, Copy, Debug, Hash)]
+struct BinaryHeapItem<const SIZE: usize, const DUPLICATED: usize> {
+    index: Index<SIZE, DUPLICATED>,
+    cost_estimate: usize
+}
+
+impl<const SIZE: usize, const DUPLICATED: usize> Index<SIZE, DUPLICATED> {
+    fn from_x_y(x: usize, y: usize) -> Self {
+        Index {
+            x, y
+        }
+    }
+
+    /// Guess the cost from this point to the goal
     fn cost_guess(&self) -> usize {
-        self.x + self.y
+        (SIZE * DUPLICATED - 1 - self.x) + (SIZE * DUPLICATED - 1 - self.y)
     }
 
     fn array_index(&self) -> usize {
-        self.x + LINE_SIZE * self.y
+        (self.x % SIZE) + (SIZE + 1) * (self.y % SIZE)
     }
 
-    fn neighbour_array_indices(&self, len: usize) -> impl Iterator<Item = usize> {
-        let index = self.array_index();
+    fn block_bonus(&self) -> usize {
+        (self.x / SIZE) + (self.y / SIZE)
+    }
+
+    fn neighbour_array_indices(&self, len: usize) -> impl Iterator<Item = Index<SIZE, DUPLICATED>> {
         // Left
         (if self.x > 0 {
-            Some(index - 1)
+            Some(Index { x: self.x - 1, y: self.y })
         } else {
             None
         }).into_iter()
         // Right
-        .chain(if self.x + 1 < LINE_SIZE - 1 {
-            Some(index + 1)
+        .chain(if self.x + 1 < SIZE * DUPLICATED {
+            Some(Index { x: self.x + 1, y: self.y })
         } else {
             None
         }.into_iter())
         // Up
-        .chain(if index > LINE_SIZE {
-            Some(index - LINE_SIZE)
+        .chain(if self.y > 0 {
+            Some(Index { x: self.x, y: self.y - 1 })
         } else {
             None
         }.into_iter())
         // Down
-        .chain(if index + LINE_SIZE < len {
-            Some(index + LINE_SIZE)
+        .chain(if self.y + 1 < SIZE * DUPLICATED {
+            Some(Index { x: self.x, y: self.y + 1 })
         } else {
             None
         }.into_iter())
     }
 }
 
-impl<const LINE_SIZE: usize> From<usize> for Index<LINE_SIZE> {
-    fn from(u: usize) -> Index<LINE_SIZE> {
-        Index {
-            x: u % LINE_SIZE,
-            y: u / LINE_SIZE
-        }
-    }
-}
-
-impl<const LINE_SIZE: usize> PartialOrd for Index<LINE_SIZE> {
+impl<const SIZE: usize, const DUPLICATED: usize> PartialOrd for BinaryHeapItem<SIZE, DUPLICATED> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<const LINE_SIZE: usize> Ord for Index<LINE_SIZE> {
+impl<const SIZE: usize, const DUPLICATED: usize> Ord for BinaryHeapItem<SIZE, DUPLICATED> {
     fn cmp(&self, other: &Self) -> Ordering {
-        (other.cost_guess()).cmp(&self.cost_guess())
+        (other.cost_estimate).cmp(&self.cost_estimate)
     }
 }
 
 pub fn part_1(input: &str) -> usize {
-    part_1_generic::<101>(input)
+    parts_generic::<100, 1>(input)
 }
 
-pub fn part_1_generic<const LINE_SIZE: usize>(input: &str) -> usize {
-    let grid = Grid::<LINE_SIZE>::new(input);
-    let mut open_set: BinaryHeap<Index<LINE_SIZE>> = BinaryHeap::new();
+pub fn part_2(input: &str) -> usize {
+    parts_generic::<100, 5>(input)
+}
+
+pub fn parts_generic<const SIZE: usize, const DUPLICATED: usize>(input: &str) -> usize {
+    let grid = Grid::<SIZE, DUPLICATED>::new(input);
+    let mut open_set = BinaryHeap::new();
     let mut g_score = HashMap::new();
-    let mut f_score = HashMap::new();
-    let start: Index<LINE_SIZE> = Index { x: 0, y: 0 };
-    let end_index = input.len() - 1;
-    open_set.push(start);
-    g_score.insert(start.array_index(), 0);
-    f_score.insert(start.array_index(), 0);
-    while let Some(index) = open_set.pop() {
-        let current_score = *g_score.get(&index.array_index()).unwrap();
-        println!("{},{}: {}", index.x, index.y, current_score);
-        if index.array_index() == end_index {
+    let start: Index<SIZE, DUPLICATED> = Index::from_x_y(0, 0);
+    let end_index = Index::from_x_y(DUPLICATED * SIZE - 1, DUPLICATED * SIZE - 1);
+    open_set.push(BinaryHeapItem { index: start, cost_estimate: start.cost_guess() });
+    g_score.insert(start, 0);
+    while let Some(BinaryHeapItem { index , cost_estimate }) = open_set.pop() {
+        let current_score = *g_score.get(&index).unwrap();
+        if index == end_index {
             return current_score;
         }
         for neighbour in index.neighbour_array_indices(input.len()) {
-            let tentative_score = current_score + grid.cost(neighbour);
+            let tentative_score = current_score + grid.cost_at(neighbour);
             if tentative_score < *g_score.get(&neighbour).unwrap_or(&usize::MAX) {
                 g_score.insert(neighbour, tentative_score);
-                f_score.insert(neighbour, tentative_score + 1);
-                open_set.push(neighbour.into());
+                let cost_estimate = tentative_score + neighbour.cost_guess();
+                open_set.push(BinaryHeapItem { index: neighbour, cost_estimate});
             }
         }
     }
@@ -122,5 +131,20 @@ fn test_part_1_example() {
 3125421639
 1293138521
 2311944581";
-    assert_eq!(part_1_generic::<11>(input), 40);
+    assert_eq!(parts_generic::<10, 1>(input), 40);
+}
+
+#[test]
+fn test_part_2_example() {
+    let input = "1163751742
+1381373672
+2136511328
+3694931569
+7463417111
+1319128137
+1359912421
+3125421639
+1293138521
+2311944581";
+    assert_eq!(parts_generic::<10, 5>(input), 315);
 }
