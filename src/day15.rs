@@ -177,3 +177,15 @@ fn test_part_2_example() {
 2311944581";
     assert_eq!(parts_generic::<10, 5>(input), 315);
 }
+
+#[test]
+fn test_part_1_input() {
+    let input = include_str!("../input/2021/day15.txt");
+    assert_eq!(part_1(input), 423);
+}
+
+#[test]
+fn test_part_2_input() {
+    let input = include_str!("../input/2021/day15.txt");
+    assert_eq!(part_2(input), 2778);
+}

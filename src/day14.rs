@@ -109,3 +109,15 @@ CC -> N
 CN -> C";
     assert_eq!(part_1(input), 1588);
 }
+
+#[test]
+fn test_part_1_input() {
+    let input = include_str!("../input/2021/day14.txt");
+    assert_eq!(part_1(input), 2509);
+}
+
+#[test]
+fn test_part_2_input() {
+    let input = include_str!("../input/2021/day14.txt");
+    assert_eq!(part_2(input), 2827627697643);
+}
