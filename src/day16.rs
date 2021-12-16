@@ -65,7 +65,7 @@ where
             .remainder
             .next()
             .map(Hex::from_hex_u8)
-            .unwrap_or(Hex::empty());
+            .unwrap_or_else(Hex::empty);
     }
 
     fn new(remainder: T) -> Self {
@@ -150,7 +150,7 @@ impl PacketHeader {
 
 struct Packet {
     version_number_sum: usize,
-    value: usize
+    value: usize,
 }
 
 trait PacketOperator {
@@ -182,7 +182,6 @@ impl PacketOperator for ProductOp {
     }
 }
 
-
 struct MinOp;
 
 impl PacketOperator for MinOp {
@@ -194,7 +193,6 @@ impl PacketOperator for MinOp {
         val_1.min(val_2)
     }
 }
-
 
 struct MaxOp;
 
@@ -224,7 +222,6 @@ impl PacketOperator for GreaterThanOp {
         }
     }
 }
-
 
 struct LessThanOp;
 impl PacketOperator for LessThanOp {
@@ -275,7 +272,7 @@ impl Packet {
             5 => Packet::read_operator_packet::<_, GreaterThanOp>(input, header),
             6 => Packet::read_operator_packet::<_, LessThanOp>(input, header),
             7 => Packet::read_operator_packet::<_, EqualOp>(input, header),
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 
@@ -288,11 +285,14 @@ impl Packet {
         let version_number_sum = usize::from(header.packet_version);
         Packet {
             version_number_sum,
-            value
+            value,
         }
     }
 
-    fn read_operator_packet<T, Op: PacketOperator>(input: &mut SliceHexReader<T>, header: PacketHeader) -> Packet
+    fn read_operator_packet<T, Op: PacketOperator>(
+        input: &mut SliceHexReader<T>,
+        header: PacketHeader,
+    ) -> Packet
     where
         T: Iterator<Item = u8>,
     {
@@ -300,7 +300,10 @@ impl Packet {
 
         let inital_fold_value = (usize::from(header.packet_version), Op::first_value());
         let fold_fn = |(version_number_sum, value), packet: Packet| {
-            (version_number_sum + packet.version_number_sum, Op::op(value, packet.value))
+            (
+                version_number_sum + packet.version_number_sum,
+                Op::op(value, packet.value),
+            )
         };
 
         let (version_number_sum, value) = if length_type_id {
@@ -322,12 +325,8 @@ impl Packet {
         input.skip_hex_remainder();
         Packet {
             version_number_sum,
-            value
+            value,
         }
-    }
-
-    fn value(&self) -> usize {
-        unimplemented!()
     }
 }
 
@@ -354,9 +353,18 @@ fn test_bit_decoding() {
         s
     };
 
-    assert_eq!(SliceHexReader::new("D2FE28".bytes()).fold(String::new(), fold_to_str), "110100101111111000101000");
-    assert_eq!(SliceHexReader::new("38006F45291200".bytes()).fold(String::new(), fold_to_str), "00111000000000000110111101000101001010010001001000000000");
-    assert_eq!(SliceHexReader::new("EE00D40C823060".bytes()).fold(String::new(), fold_to_str), "11101110000000001101010000001100100000100011000001100000");
+    assert_eq!(
+        SliceHexReader::new("D2FE28".bytes()).fold(String::new(), fold_to_str),
+        "110100101111111000101000"
+    );
+    assert_eq!(
+        SliceHexReader::new("38006F45291200".bytes()).fold(String::new(), fold_to_str),
+        "00111000000000000110111101000101001010010001001000000000"
+    );
+    assert_eq!(
+        SliceHexReader::new("EE00D40C823060".bytes()).fold(String::new(), fold_to_str),
+        "11101110000000001101010000001100100000100011000001100000"
+    );
 }
 
 #[test]
@@ -364,10 +372,13 @@ fn read_packet_header_test() {
     let packet = "D2FE28";
     let mut reader = SliceHexReader::new(packet.bytes());
     let header = PacketHeader::read(&mut reader);
-    assert_eq!(header, PacketHeader {
-        packet_version: 6,
-        packet_type_id: 4
-    });
+    assert_eq!(
+        header,
+        PacketHeader {
+            packet_version: 6,
+            packet_type_id: 4
+        }
+    );
 }
 
 #[test]
