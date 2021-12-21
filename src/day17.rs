@@ -2,7 +2,7 @@ use nom::{
     bytes::complete::tag,
     character::complete::digit1,
     combinator::{map, map_res, opt},
-    sequence::{preceded, separated_pair, pair},
+    sequence::{pair, preceded, separated_pair},
 };
 use std::ops::RangeInclusive;
 use std::str::FromStr;
@@ -45,9 +45,19 @@ fn parse(input: &str) -> (RangeInclusive<u16>, RangeInclusive<i32>) {
             tag(", y="),
             map(
                 separated_pair(
-                    map(pair(opt(tag("-")), digit1), |(minus, num): (Option<&str>, &str)| i32::from_str(num).unwrap() * if minus.is_some() { -1 } else { 1 }),
+                    map(
+                        pair(opt(tag("-")), digit1),
+                        |(minus, num): (Option<&str>, &str)| {
+                            i32::from_str(num).unwrap() * if minus.is_some() { -1 } else { 1 }
+                        },
+                    ),
                     tag(".."),
-                    map(pair(opt(tag("-")), digit1), |(minus, num): (Option<&str>, &str)| i32::from_str(num).unwrap() * if minus.is_some() { -1 } else { 1 }),
+                    map(
+                        pair(opt(tag("-")), digit1),
+                        |(minus, num): (Option<&str>, &str)| {
+                            i32::from_str(num).unwrap() * if minus.is_some() { -1 } else { 1 }
+                        },
+                    ),
                 ),
                 |(a, b): (i32, i32)| a..=b,
             ),
@@ -72,7 +82,6 @@ pub fn part_1(input: &str) -> i32 {
                     reached_target = true;
                 }
                 current_max_y = current_max_y.max(y);
-                
             }
             if reached_target {
                 max_y = max_y.max(current_max_y);
@@ -81,7 +90,6 @@ pub fn part_1(input: &str) -> i32 {
     }
     max_y
 }
-
 
 pub fn part_2(input: &str) -> usize {
     let mut count = 0;
@@ -96,7 +104,6 @@ pub fn part_2(input: &str) -> usize {
                 } else if x_range.contains(&x) && y_range.contains(&y) {
                     reached_target = true;
                 }
-                
             }
             if reached_target {
                 count += 1;
