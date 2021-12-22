@@ -184,6 +184,9 @@ pub fn part_2(input: &str) -> usize {
     p_1_wins.max(p_2_wins)
 }
 
+const MIN_THREE_DICE_RESULT: usize = 3;
+const MAX_THREE_DICE_RESULT: usize = 9;
+
 /// An array representing the number of ways to throw that outcome.
 /// ```rust
 /// assert_eq!(THREE_DICE_OUTCOMES[3], 1); // Throw 1, 1, 1
@@ -208,177 +211,71 @@ const THREE_DICE_OUTCOMES: [usize; 10] = {
 };
 
 const WINNING_SCORE: usize = 21;
-const SCORE_OFFSET: usize = 10;
+const POSITIONS: usize = 10;
 
-const fn score_to_index(score: usize) -> usize {
-    SCORE_OFFSET + score
-}
+#[derive(Default)]
+struct Table([[[[usize; POSITIONS]; WINNING_SCORE]; POSITIONS]; WINNING_SCORE]);
 
-const fn score_to_index_sub(score: usize, sub: usize) -> usize {
-    SCORE_OFFSET + score - sub
-}
-
-struct WaysToGetScore {
-    poss: [[Option<usize>; WINNING_SCORE + SCORE_OFFSET]; WINNING_SCORE + SCORE_OFFSET],
-}
-
-impl WaysToGetScore {
-    const fn new() -> Self {
-        WaysToGetScore {
-            poss: [[None; WINNING_SCORE + SCORE_OFFSET]; WINNING_SCORE + SCORE_OFFSET],
-        }
+impl Table {
+    const fn empty() -> Self {
+        Table([[[[0; POSITIONS]; WINNING_SCORE]; POSITIONS]; WINNING_SCORE])
     }
 
-    /// Compute the number of ways to get a score. For that, we should know the possibilities at the start of the turn, up to own_score, other_score.
-    fn compute_turn(
-        mut self,
-        own_score: usize,
-        other_score: usize,
-        other_score_possibilities: &WaysToGetScore,
-    ) -> WaysToGetScore {
-        // We want to find the number of ways that we can reach the score `own_score`, `other_score`.
-        // We can arrive there from `own_score - dice_trow`, `other_score` for each dice throw.
-
-        // It shouldn't have been computed yet.
-        // assert_eq!(self.poss[score_to_index(own_score)][score_to_index(other_score)], 0);
-
-        self.poss[score_to_index(own_score)][score_to_index(other_score)] = Some(0);
-
-        let mut dice_throw = 3;
-        while dice_throw <= 9 {
-            let possibilities_to_throw_dice = THREE_DICE_OUTCOMES[dice_throw];
-            println!(
-                "Looking up {} {}",
-                other_score,
-                own_score as isize - dice_throw as isize
-            );
-            *self.poss[score_to_index(own_score)][score_to_index(other_score)]
-                .as_mut()
-                .unwrap() += possibilities_to_throw_dice
-                * other_score_possibilities.poss[score_to_index(other_score)]
-                    [score_to_index_sub(own_score, dice_throw)]
-                .unwrap();
-            dice_throw += 1;
-        }
-
-        self
+    const fn from_starting_position(own: usize, other: usize) -> Self {
+        let mut t = [[[[0; POSITIONS]; WINNING_SCORE]; POSITIONS]; WINNING_SCORE];
+        t[0][own][0][other] = 1;
+        Table(t)
     }
 
-    fn print(&self, start_1: usize, start_2: usize, highlight_x: usize, highlight_y: usize) {
-        print!("\t");
-        for x in start_1..WINNING_SCORE {
-            print!("|{}|\t", x);
-        }
-        println!();
-        for y in start_2..WINNING_SCORE {
-            print!("{} |\t", y);
-            for x in start_1..WINNING_SCORE {
-                if x == highlight_x && y == highlight_y {
-                    print!("[");
-                } else {
-                    print!(" ");
-                }
-                if let Some(u) = self.poss[x + SCORE_OFFSET][y + SCORE_OFFSET] {
-                    print!("{}", u);
-                } else {
-                    print!("_");
-                }
-                if x == highlight_x && y == highlight_y {
-                    print!("]\t");
-                } else {
-                    print!(" \t");
-                }
-            }
-            println!();
-        }
-    }
-
-    fn compute_possibilities_to_win(&self) -> usize {
+    fn do_turn(&mut self, own_score: usize, other_score: usize, own_position: usize, other_position: usize, other_player: &Table) -> usize {
+        assert!(own_score < WINNING_SCORE);
+        assert!(other_score < WINNING_SCORE);
+        assert!(own_position < POSITIONS);
+        assert!(other_position < POSITIONS);
         let mut possibilities = 0;
-        let mut dice_throw = 3;
-        while dice_throw <= 9 {
-            let mut winning_score = WINNING_SCORE;
-            // We always win by crossing WINNING_SCORE. But it can be more than that. In fact, WINNING_SCORE + dice roll - 1 can be reached.
-            while winning_score < WINNING_SCORE + dice_throw {
-                let possibilities_to_throw_dice = THREE_DICE_OUTCOMES[dice_throw];
-                let mut other_score = SCORE_OFFSET;
-                while other_score < WINNING_SCORE {
-                    possibilities += possibilities_to_throw_dice
-                        * self.poss[score_to_index_sub(winning_score, dice_throw)]
-                            [score_to_index(other_score)]
-                        .unwrap();
-                    other_score += 1;
-                }
-                winning_score += 1;
+        let mut dice = MIN_THREE_DICE_RESULT;
+        while dice <= MAX_THREE_DICE_RESULT {
+            // The current player position can be derived from their score.
+            let own_position_new = (own_position + dice) % POSITIONS;
+            let own_score_new = own_score + own_position_new + 1;
+            let frequency = THREE_DICE_OUTCOMES[dice];
+            if own_score_new >= WINNING_SCORE {
+                possibilities += other_player.0[other_score][other_position][own_score][own_position] * frequency;
+            } else {
+                assert!(own_score_new < WINNING_SCORE);
+                assert!(own_position_new < POSITIONS);
+                self.0[own_score_new][own_position_new][other_score][other_position] += other_player.0[other_score][other_position][own_score][own_position] * frequency;
             }
-            dice_throw += 1;
+            dice += 1;
         }
         possibilities
     }
+}
 
-    fn compute_ways_to_get_score(starting_score_p1: usize, starting_score_p2: usize) -> usize {
-        let mut after_p1_turn = WaysToGetScore::new();
-        let mut after_p2_turn = WaysToGetScore::new();
-
-        let mut x = 0;
-        while x < WINNING_SCORE + SCORE_OFFSET {
-            let mut y = 0;
-            while y < WINNING_SCORE + SCORE_OFFSET {
-                if x < starting_score_p1 + SCORE_OFFSET || y < starting_score_p2 + SCORE_OFFSET {
-                    after_p1_turn.poss[x][y] = Some(0);
-                    after_p2_turn.poss[y][x] = Some(0);
+fn compute_possibilities_to_reach_score(start_p1: usize, start_p2: usize) -> usize {
+    let mut after_turn_p2 = Table::from_starting_position(start_p2 - 1, start_p1 - 1);
+    let mut after_turn_p1 = Table::empty();
+    let mut possibilities_p1 = 0;
+    let mut possibilities_p2 = 0;
+    let mut p1_score = 0;
+    while p1_score < WINNING_SCORE {
+        let mut p2_score = 0;
+        while p2_score < WINNING_SCORE {
+            let mut p1_position = 0;
+            while p1_position < POSITIONS {
+                let mut p2_position = 0;
+                while p2_position < POSITIONS {
+                    possibilities_p1 += after_turn_p1.do_turn(p1_score, p2_score, p1_position, p2_position, &after_turn_p2);
+                    possibilities_p2 += after_turn_p2.do_turn(p2_score, p1_score, p2_position, p1_position, &after_turn_p1);
+                    p2_position += 1;
                 }
-                y += 1;
+                p1_position += 1;
             }
-            x += 1;
+            p2_score += 1;
         }
-        after_p2_turn.poss[score_to_index(starting_score_p2)][score_to_index(starting_score_p1)] =
-            Some(1);
-        after_p1_turn.poss[score_to_index(starting_score_p1)][score_to_index(starting_score_p2)] =
-            Some(0);
-
-        // We want to go through all scores in incrementing fashion.
-        let mut score_sum = starting_score_p1 + starting_score_p2 + 1;
-        while score_sum <= 2 * WINNING_SCORE {
-            // The p_1 score should be more than the starting score and never so low that the p_2 score is winning.
-            // `max(starting_score_p1, score_sum - (WINNING_SCORE - 1))`
-            let min_score_p1 = if starting_score_p1 + (WINNING_SCORE - 1) > score_sum {
-                starting_score_p1
-            } else {
-                score_sum - (WINNING_SCORE - 1)
-            };
-
-            // Similartly, the p_2 score should never be a winning score and never so high that the p_2 score is lower
-            // than their starting score.
-            // `min(WINNING_SCORE - 1, score_sum - starting_score_p2)`
-            let max_score_p1 = if WINNING_SCORE - 1 < score_sum - starting_score_p2 {
-                WINNING_SCORE - 1
-            } else {
-                score_sum - starting_score_p2
-            };
-
-            let mut score_1 = min_score_p1;
-            while score_1 <= max_score_p1 {
-                let score_2 = score_sum - score_1;
-                println!("{} {}", score_1, score_2);
-                println!("After p_1 turn:");
-                after_p1_turn.print(starting_score_p1, starting_score_p2, score_1, score_2);
-                println!("After p_2 turn:");
-                after_p2_turn.print(starting_score_p2, starting_score_p1, score_2, score_1);
-                // First p_1 should throw the dice.
-                after_p1_turn = after_p1_turn.compute_turn(score_1, score_2, &after_p2_turn);
-                // Then p_2
-                after_p2_turn = after_p2_turn.compute_turn(score_2, score_1, &after_p1_turn);
-                score_1 += 1;
-            }
-            score_sum += 1;
-        }
-
-        // We have now computed the board up to WINNING_SCORE - 1. Finally, sum all outcomes for the final dice roll.
-        after_p1_turn
-            .compute_possibilities_to_win()
-            .max(after_p2_turn.compute_possibilities_to_win())
+        p1_score += 1;
     }
+    possibilities_p1.max(possibilities_p2)
 }
 
 /// The solutions for part 2 stored in the following manner:
@@ -390,7 +287,7 @@ const PART_2_SOLUTIONS: [usize; 256] = {
     while a <= b'9' {
         let mut b = b'0';
         while b <= b'9' {
-            solutions[(a ^ (b << 4)) as usize] = WaysToGetScore::compute_ways_to_get_score((a - b'0') as usize, (b - b'0') as usize);
+            // solutions[(a ^ (b << 4)) as usize] = compute_possibilities_to_reach_score((a - b'0') as usize, (b - b'0') as usize);
             b += 1;
         }
         a += 1;
@@ -425,7 +322,7 @@ fn test_die() {
 #[test]
 fn test_part_2_example() {
     assert_eq!(
-        WaysToGetScore::compute_ways_to_get_score(4, 8),
+        compute_possibilities_to_reach_score(4, 8),
         444356092776315
     );
 }

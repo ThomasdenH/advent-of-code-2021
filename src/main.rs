@@ -15,6 +15,7 @@ mod day15;
 mod day16;
 mod day17;
 mod day2;
+mod day21;
 mod day3;
 mod day4;
 mod day5;
@@ -22,7 +23,6 @@ mod day6;
 mod day7;
 mod day8;
 mod day9;
-mod day21;
 
 aoc_main::main! {
     year 2021;
@@ -43,5 +43,5 @@ aoc_main::main! {
     day15 => part_1, part_2;
     day16 => part_1, part_2;
     day17 => part_1, part_2;
-    day21 => part_1, part_2;
+    day21 => part_1, part_2, part_2_precomputed;
 }
