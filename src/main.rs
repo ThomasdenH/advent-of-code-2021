@@ -5,6 +5,9 @@
 #![feature(const_eval_limit)]
 #![const_eval_limit = "0"]
 
+// Used for day 21
+#![feature(const_mut_refs)]
+
 mod day1;
 mod day10;
 mod day11;
@@ -23,6 +26,7 @@ mod day6;
 mod day7;
 mod day8;
 mod day9;
+mod day23;
 
 aoc_main::main! {
     year 2021;
@@ -43,5 +47,6 @@ aoc_main::main! {
     day15 => part_1, part_2;
     day16 => part_1, part_2;
     day17 => part_1, part_2;
-    day21 => part_1, part_2, part_2_precomputed;
+    day21 => part_1, part_2;
+    day23 => part_1;
 }
